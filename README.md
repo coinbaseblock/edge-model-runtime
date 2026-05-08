@@ -1,6 +1,11 @@
 # edge-model-runtime
 
-> Production-grade Docker runtime for running and training local LLMs on MSI EdgeXpert / Ubuntu NVIDIA edge machines.
+> Production-grade Docker runtime for running and training local LLMs on NVIDIA edge machines — MSI EdgeXpert, NVIDIA DGX Spark, or any Ubuntu + NVIDIA host.
+
+Tested on:
+- **MSI EdgeXpert** (x86_64, discrete GPU)
+- **NVIDIA DGX Spark** (aarch64, GB10 / DGX OS 7.x, kernel 6.17 nvidia)
+- Generic Ubuntu 22.04+ with NVIDIA Container Toolkit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://docs.docker.com/compose/)
@@ -28,12 +33,15 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 
 | Component | Version |
 |-----------|---------|
-| Ubuntu Linux | 22.04+ |
+| Ubuntu Linux (or DGX OS) | 22.04+ / DGX OS 7.x |
+| Architecture | `x86_64` or `aarch64` |
 | Docker Engine | 24.0+ |
 | Docker Compose | v2.20+ |
-| NVIDIA Driver | 535+ |
+| NVIDIA Driver | 535+ (any driver shipped with DGX OS works) |
 | NVIDIA Container Toolkit | latest |
-| Mounted disk | `/mnt/edge-backup` |
+| Data disk | any path with ≥ 100 GB free, set via `AI_DATA_ROOT` in `.env` |
+
+> **DGX Spark note:** DGX OS ships with Docker + NVIDIA Container Toolkit pre-installed, so you can skip the toolkit install below. Verify with `docker info | grep -i runtime` — you should see `nvidia`.
 
 Install NVIDIA Container Toolkit:
 ```bash
@@ -50,10 +58,10 @@ sudo systemctl restart docker
 
 ## 📁 Data Layout
 
-All persistent data is on the host disk — **never inside containers**:
+All persistent data is on the host disk — **never inside containers**. The root path is whatever you set `AI_DATA_ROOT` to in `.env`:
 
 ```text
-/mnt/edge-backup/ai-data/
+${AI_DATA_ROOT}/
 ├── ollama/        # Ollama models — DO NOT DELETE
 ├── open-webui/    # WebUI database & settings
 ├── hf-cache/      # HuggingFace cache (optional vLLM)
@@ -61,7 +69,15 @@ All persistent data is on the host disk — **never inside containers**:
 └── logs/          # Container logs (rotated)
 ```
 
-> ⚠️ **Critical:** Do not delete `/mnt/edge-backup/ai-data/ollama` unless you intentionally want to wipe all downloaded models. The protection layers in `scripts/` are designed to prevent accidental deletion.
+Recommended values for `AI_DATA_ROOT`:
+
+| Host | Recommended path |
+|---|---|
+| MSI EdgeXpert | `/mnt/edge-backup/ai-data` (external/secondary disk) |
+| NVIDIA DGX Spark | `/home/<user>/ai-data` (single 1 TB NVMe; ~915 GB usable) |
+| Generic Ubuntu | wherever you have ≥ 100 GB free |
+
+> ⚠️ **Critical:** Do not delete `${AI_DATA_ROOT}/ollama` unless you intentionally want to wipe all downloaded models. The protection layers in `scripts/` are designed to prevent accidental deletion.
 
 ---
 
@@ -69,21 +85,27 @@ All persistent data is on the host disk — **never inside containers**:
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/edge-model-runtime.git
+git clone https://github.com/coinbaseblock/edge-model-runtime.git
 cd edge-model-runtime
 
-# 2. Install (first time only)
+# 2. Configure: copy .env.example to .env and set AI_DATA_ROOT for your host
+cp .env.example .env
+$EDITOR .env   # set AI_DATA_ROOT (see "Data Layout" above)
+
+# 3. Install (first time only)
 bash scripts/00-install.sh
 
-# 3. Pull a model
+# 4. Pull a model
 bash scripts/04-pull-model.sh qwen2.5-coder:7b
 
 # Or pull a Nemotron variant (default: nano — see docs/MODEL-RECOMMENDATIONS.md)
 bash scripts/0a-pull-nemotron.sh nano
 
-# 4. Open WebUI
-open http://localhost:3000
+# 5. Open WebUI
+open http://localhost:3000   # or http://<host-ip>:3000 from another machine
 ```
+
+> **Recommended clone location on DGX Spark:** `/home/<user>/edge-model-runtime` (e.g. `/home/expert/edge-model-runtime`). Keep `AI_DATA_ROOT` on the same disk to avoid cross-mount copies.
 
 ---
 
@@ -225,7 +247,7 @@ edge-model-runtime/
 | `10-cleanup-docker.sh` | removed | removed | kept | ❌ no |
 | `20-wipe-models.sh` | removed | removed | **deleted** | ✅ yes |
 
-The model directory (`/mnt/edge-backup/ai-data/ollama`) is bind-mounted into the container at `/root/.ollama`. Removing the container does not touch the host directory — Ollama just sees its models again on next start.
+The model directory (`${AI_DATA_ROOT}/ollama`) is bind-mounted into the container at `/root/.ollama`. Removing the container does not touch the host directory — Ollama just sees its models again on next start.
 
 ---
 
