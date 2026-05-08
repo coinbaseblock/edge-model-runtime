@@ -115,6 +115,27 @@ open http://localhost:3000   # or http://<host-ip>:3000 from another machine
 
 ## 🎓 Usage
 
+### Pick your AI coding workflow
+
+The repo ships four ways to use a coding assistant on this stack — pick what
+matches the job. All of them edit your real git repo and can push to GitHub.
+
+| You want… | Use | One-liner |
+|---|---|---|
+| Codex/Claude-Code feel, 100% local, edits files directly | **OpenCode TUI** (Option A) | `make codex` |
+| Same UX but using a local Ollama model as the brain | **Claude Code on local** (Option D) | `make claude-local` |
+| Hardest reasoning (cloud Claude) + local worker via MCP | **Claude Code + cloud** (Option B) | `make claude-cloud` |
+| Browser only — chat in Open WebUI, paste back a unified diff | **Web Codex** (Option C-style) | `make webui`, then `make apply-patch P=/tmp/x.patch COMMIT=1 PUSH=1 PR=1` |
+
+`make codex` and `make claude-local` are the closest equivalents to ChatGPT
+Codex / Claude Code on a local model — they edit files in this repo and run
+`git`/`gh` directly. The browser flow uses the
+[Web Codex playbook](./docs/WEB-CODEX-PLAYBOOK.md): the model returns a
+unified diff, then `scripts/35-apply-web-patch.sh` (wrapped by
+`make apply-patch`) applies + commits + pushes + opens a PR.
+
+Full details and trade-offs: [`docs/AI-CODING-SETUP.md`](./docs/AI-CODING-SETUP.md).
+
 ### Upgrading an existing install
 
 You **do not** need `docker compose down` to pull updates. Models live on

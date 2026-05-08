@@ -92,24 +92,35 @@ Rules:
 
 ## 4) ขั้นตอน apply patch กลับเข้า git repo (นอกเบราว์เซอร์)
 
-แม้จะทำงานหลักผ่านเว็บ แต่การแก้ไฟล์จริงยังต้อง apply ใน repo ของคุณ:
+แม้จะทำงานหลักผ่านเว็บ แต่การแก้ไฟล์จริงยังต้อง apply ใน repo ของคุณ
+
+### วิธีลัด (แนะนำ) — `make apply-patch`
+
+วาง diff จากหน้าเว็บลง `/tmp/web.patch` แล้วเรียก:
 
 ```bash
-# 1) วาง diff จากหน้าเว็บลงไฟล์
-cat > /tmp/web-codex.patch
+# แค่ apply เพื่อ review ก่อน commit
+make apply-patch P=/tmp/web.patch
 
-# 2) ตรวจว่า patch apply ได้
+# apply + commit
+make apply-patch P=/tmp/web.patch COMMIT=1 MSG="fix: handle empty config"
+
+# apply + commit + push + เปิด PR (ต้องเคย gh auth login แล้ว)
+make apply-patch P=/tmp/web.patch COMMIT=1 PUSH=1 PR=1
+```
+
+เบื้องหลังคือ `scripts/35-apply-web-patch.sh` ที่จะ `git apply --check` ก่อน,
+apply, แล้ว commit/push/PR ตามแฟล็ก ถ้า `--check` ไม่ผ่านจะหยุดและพิมพ์ error
+ให้คุณวางกลับเข้า WebUI เพื่อขอ patch ที่แก้แล้ว
+
+### วิธีแมนนวล (ทำเองทีละขั้น)
+
+```bash
+cat > /tmp/web-codex.patch       # วาง diff จากเว็บ
 git apply --check /tmp/web-codex.patch
-
-# 3) apply จริง
 git apply /tmp/web-codex.patch
-
-# 4) รันเทสต์
 bash scripts/03-verify.sh
-
-# 5) ดู diff ก่อน commit
-git status --short
-git diff
+git status --short && git diff
 ```
 
 > ถ้า `git apply --check` ไม่ผ่าน ให้ส่ง error กลับไปในแชต แล้วขอให้โมเดล regenerate patch เฉพาะจุดที่พัง
