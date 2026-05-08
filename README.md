@@ -4,7 +4,7 @@
 
 Tested on:
 - **MSI EdgeXpert** (x86_64, discrete GPU)
-- **NVIDIA DGX Spark** (aarch64, GB10 / DGX OS 7.x, kernel 6.17 nvidia)
+- **NVIDIA DGX Spark** (arm64/aarch64, GB10 / DGX OS 7.x, kernel 6.17 nvidia)
 - Generic Ubuntu 22.04+ with NVIDIA Container Toolkit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -38,7 +38,7 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 | Component | Version |
 |-----------|---------|
 | Ubuntu Linux (or DGX OS) | 22.04+ / DGX OS 7.x |
-| Architecture | `x86_64` or `aarch64` |
+| Architecture | `x86_64` or `arm64` (aarch64) |
 | Docker Engine | 24.0+ |
 | Docker Compose | v2.20+ |
 | NVIDIA Driver | 535+ (any driver shipped with DGX OS works) |
