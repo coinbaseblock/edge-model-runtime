@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+msg_file="$1"
+subject="$(head -n1 "$msg_file" | tr -d '\r')"
+
+if [[ -z "$subject" ]]; then
+  echo "Empty commit message subject is not allowed."
+  exit 1
+fi
+
+if [[ ${#subject} -gt 72 ]]; then
+  echo "Commit subject must be <= 72 characters."
+  exit 1
+fi

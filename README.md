@@ -210,6 +210,19 @@ The sync script:
 Adding / removing a model is now an edit to a text file plus one command —
 no need to touch `docker-compose.yml` or any script.
 
+
+### Codex/Claude-style repo automation
+
+```bash
+make hooks-install   # install git hooks (pre-commit + commit-msg)
+make quick-check     # shellcheck + compose config + safety invariants
+make ai-review       # quick-check then show git status
+make ai-fix          # chmod normalize + quick-check
+make ai-pr           # write a PR notes stub in .pr-notes.md
+```
+
+These commands provide a repeatable local workflow for plan→patch→validate→PR.
+
 ### Cleanup levels
 
 | Level | Script | What it removes | Models? |
