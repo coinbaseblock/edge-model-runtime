@@ -13,9 +13,9 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Lint scripts
-        run: |
-          shopt -s globstar nullglob
-          shellcheck -x scripts/lib/common.sh scripts/*.sh
+        # cd into scripts/ so `source "$(dirname "$0")/lib/common.sh"` resolves
+        # relative to the script, the same way it does at runtime.
+        run: ( cd scripts && shellcheck -x lib/common.sh ./*.sh )
 
   compose-validate:
     runs-on: ubuntu-latest
