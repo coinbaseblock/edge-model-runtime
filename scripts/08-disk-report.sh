@@ -41,5 +41,11 @@ for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE VLLM_IMAGE TRAINING_IMAGE
   fi
 done
 
+# agents-web is built locally (no pinned tag) — check the well-known image.
+if docker image inspect edge-agents-web:local >/dev/null 2>&1; then
+  size=$(docker image inspect edge-agents-web:local --format '{{.Size}}' | numfmt --to=iec 2>/dev/null || echo "?")
+  ok  "edge-agents-web:local ($size)  [locally built]"
+fi
+
 section "💽 Filesystem"
 df -h "${AI_DATA_ROOT:-/}" 2>/dev/null || df -h /

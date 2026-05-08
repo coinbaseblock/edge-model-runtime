@@ -59,6 +59,17 @@ else
   err "WebUI: unreachable at $webui_url"
 fi
 
+# agents-web (browser TUI) is opt-in — only check if running.
+if docker ps --format '{{.Names}}' | grep -qx 'edge-agents-web'; then
+  agents_url="http://localhost:${AGENTS_WEB_PORT:-7681}"
+  http_code=$(curl -s -o /dev/null -w '%{http_code}' "$agents_url" 2>/dev/null || echo 000)
+  case "$http_code" in
+    200|401) ok "agents-web: OK ($agents_url)" ;;
+    000)     err "agents-web: unreachable at $agents_url" ;;
+    *)       warn "agents-web: HTTP $http_code at $agents_url" ;;
+  esac
+fi
+
 # LiteLLM is opt-in — only check it if the container exists.
 if docker ps --format '{{.Names}}' | grep -qx 'edge-litellm'; then
   if curl -sf "$litellm_url/health/liveliness" >/dev/null 2>&1; then

@@ -49,6 +49,15 @@ for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE VLLM_IMAGE TRAINING_IMAGE
   fi
 done
 
+# Locally-built agents-web image (no pinned tag).
+if docker image inspect edge-agents-web:local >/dev/null 2>&1; then
+  if docker image rm edge-agents-web:local >/dev/null 2>&1; then
+    ok "removed edge-agents-web:local"
+  else
+    warn "could not remove edge-agents-web:local (in use?)"
+  fi
+fi
+
 # --- Prune dangling --------------------------------------------------------
 section "Pruning"
 docker image prune -f

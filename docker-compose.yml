@@ -108,6 +108,51 @@ services:
         max-file: "2"
 
   # ---------------------------------------------------------------------------
+  # OPTIONAL: agents-web — OpenCode + Claude Code in a browser terminal
+  # Opens http://<AGENTS_WEB_BIND>:<AGENTS_WEB_PORT> with a menu that
+  # launches either agent (or a plain bash). Uses host networking so the
+  # existing `localhost:11434` / `localhost:4000` URLs in opencode.json
+  # work unchanged from inside the container.
+  #
+  # Enable: bash scripts/33-setup-agents-web.sh        (one-time wizard)
+  # Or:     docker compose --profile agents up -d --build agents-web
+  # ---------------------------------------------------------------------------
+  agents-web:
+    build:
+      context: ./agents-web
+    image: edge-agents-web:local
+    container_name: edge-agents-web
+    profiles: ["agents"]
+    restart: unless-stopped
+
+    # Host networking: the menu launches opencode/claude which read URLs
+    # like http://localhost:11434 from opencode.json and the user's
+    # claude config. Sharing the host network namespace makes those work
+    # without rewrite. Note: with `network_mode: host`, the `ports:` key
+    # is ignored — bind/port are controlled by the entrypoint via env.
+    network_mode: host
+
+    environment:
+      AGENTS_WEB_PORT: ${AGENTS_WEB_PORT:-7681}
+      AGENTS_WEB_USER: ${AGENTS_WEB_USER:-}
+      AGENTS_WEB_PASS: ${AGENTS_WEB_PASS:-}
+
+    volumes:
+      # Repo, read-write — agents edit code here.
+      - ./:/workspace
+      # Persist agent login + config across container rebuilds.
+      - ${AI_DATA_ROOT}/agents-web/claude:/root/.claude
+      - ${AI_DATA_ROOT}/agents-web/claude-config:/root/.config
+      - ${AI_DATA_ROOT}/agents-web/opencode-share:/root/.local/share
+      - ${AI_DATA_ROOT}/agents-web/opencode-config:/root/.opencode
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  # ---------------------------------------------------------------------------
   # OPTIONAL: LiteLLM proxy — exposes cloud LLMs (Claude, GPT, Gemini …)
   # as an OpenAI-compatible endpoint so Open WebUI shows them in the same
   # model dropdown as local Ollama models. Opt-in: requires API keys and

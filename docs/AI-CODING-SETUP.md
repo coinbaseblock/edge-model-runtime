@@ -1,14 +1,14 @@
 # AI-assisted coding on this stack
 
-Three ways to use this runtime. Pick one — they coexist.
+Four ways to use this runtime. Pick one — they coexist.
 
-| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI |
-|---|---|---|---|
-| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) |
-| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu |
-| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work |
+| | A · OpenCode | B · Claude Code + Ollama | C · Unified Web Chat | D · Agents in browser |
+|---|---|---|---|---|
+| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | ttyd terminal (browser) |
+| What you get | Local agentic coding | Cloud agent + local offload | Chat with any model from a menu | Both A and B inside a browser |
+| Inference | 100% local Ollama | Cloud Claude **+** local Ollama | Local + cloud in one dropdown | Same as A and B |
+| Cost | $0 | Claude subscription | $0 local + pay per cloud token | Same as A and B |
+| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models | you only have a browser (tablet, kiosk, ssh-less host) |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -243,6 +243,79 @@ Calls routed to a cloud model leave your host (that's the whole point —
 they're cloud models). Calls to local Ollama models still never leave.
 LiteLLM logs requests at `INFO` level by default — set `LITELLM_LOG=WARNING`
 in `.env` to quiet that.
+
+---
+
+## Option D — Agents in the browser (no terminal needed)
+
+Spins up a small container that bundles **both** OpenCode and Claude Code
+behind [ttyd](https://github.com/tsl0922/ttyd) — a terminal in a browser
+tab. Open the URL, log in with basic auth, and a menu lets you pick which
+agent to launch:
+
+```
+[1] OpenCode      — local Ollama
+[2] Claude Code   — cloud Claude
+[3] Bash shell    — anything else
+```
+
+Useful when:
+- You're on a tablet / Chromebook / locked-down machine without an SSH
+  client.
+- You want to leave a long-running agent session attached to the host
+  and reconnect from any browser.
+- You're demoing the stack to someone and just want to share a URL.
+
+### One-time setup
+
+```bash
+bash scripts/33-setup-agents-web.sh
+```
+
+That wizard:
+1. Generates `AGENTS_WEB_USER` / `AGENTS_WEB_PASS` in `.env`.
+2. Creates persistent state dirs under `${AI_DATA_ROOT}/agents-web/`
+   so `claude login` and OpenCode config survive container rebuilds.
+3. Builds the `agents-web` image (Node 20 + claude + opencode + ttyd).
+4. Starts the `agents` profile.
+5. Prints the URL and credentials.
+
+### Use it
+
+1. Open `http://localhost:7681` in your browser.
+2. Log in with the printed user / password.
+3. Pick `[1]`, `[2]`, or `[3]`.
+
+First time you pick **Claude Code**, run `claude login` inside it to
+authenticate against your subscription. The OAuth token is written to
+`/root/.claude` in the container, which is bind-mounted to
+`${AI_DATA_ROOT}/agents-web/claude` on the host — so it persists across
+rebuilds and image upgrades.
+
+OpenCode reads `opencode.json` from `/workspace` (your repo). Both local
+Ollama and (if `cloud` profile is up) LiteLLM cloud models appear in the
+picker.
+
+### Networking
+
+The container uses **`network_mode: host`** so the same `localhost:11434`
+and `localhost:4000` URLs that work from your terminal also work from
+inside it. No URL rewriting in `opencode.json` needed.
+
+That means by default, the ttyd port (7681) is bound by the entrypoint
+to `0.0.0.0` and reachable from your LAN. If you want to restrict it to
+localhost only (recommended unless you have other auth in front), put
+ttyd behind a reverse proxy or change `entrypoint.sh` to add
+`--interface lo`.
+
+### Stopping
+
+```bash
+docker compose --profile agents stop agents-web
+```
+
+To rotate the password: clear `AGENTS_WEB_PASS` in `.env` and re-run
+`bash scripts/33-setup-agents-web.sh`.
 
 ---
 
