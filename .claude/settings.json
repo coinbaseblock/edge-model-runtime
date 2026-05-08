@@ -2,12 +2,22 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(bash scripts/*.sh:*)",
+      "Bash(bash scripts/00-install.sh:*)",
+      "Bash(bash scripts/01-start.sh:*)",
+      "Bash(bash scripts/02-stop.sh:*)",
+      "Bash(bash scripts/03-verify.sh:*)",
+      "Bash(bash scripts/04-pull-model.sh:*)",
+      "Bash(bash scripts/05-list-models.sh:*)",
+      "Bash(bash scripts/06-remove-model.sh:*)",
+      "Bash(bash scripts/07-run-model.sh:*)",
+      "Bash(bash scripts/08-disk-report.sh:*)",
+      "Bash(bash scripts/09-update-images.sh:*)",
+      "Bash(bash scripts/10-cleanup-docker.sh:*)",
+      "Bash(bash scripts/0a-pull-nemotron.sh:*)",
       "Bash(docker compose ps:*)",
       "Bash(docker compose logs:*)",
       "Bash(docker compose pull:*)",
-      "Bash(docker compose up *)",
-      "Bash(docker compose down)",
+      "Bash(docker compose config:*)",
       "Bash(docker exec edge-ollama ollama list)",
       "Bash(docker exec edge-ollama ollama show:*)",
       "Bash(docker ps:*)",
@@ -17,6 +27,7 @@
       "Bash(du -sh:*)",
       "Bash(df -h:*)",
       "Bash(nvidia-smi:*)",
+      "Bash(shellcheck:*)",
       "Read(./**)",
       "Edit(scripts/**)",
       "Edit(docker-compose.yml)",
@@ -25,7 +36,8 @@
       "Edit(docs/**)",
       "Edit(training/**)",
       "Edit(README.md)",
-      "Edit(CLAUDE.md)"
+      "Edit(CLAUDE.md)",
+      "Edit(.claude/**)"
     ],
     "deny": [
       "Bash(bash scripts/20-wipe-models.sh:*)",

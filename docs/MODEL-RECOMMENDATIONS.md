@@ -2,6 +2,27 @@
 
 Pick based on your VRAM and use case. All examples assume Ollama; any model from the [Ollama library](https://ollama.com/library) works.
 
+## Nemotron family
+
+NVIDIA's Nemotron line is a first-class option on this stack. Use the helper script to pick the right variant for your VRAM:
+
+```bash
+bash scripts/0a-pull-nemotron.sh nano   # default
+```
+
+| Variant | Ollama tag | Active params | VRAM (rough) | Notes |
+|---|---|---|---|---|
+| `mini` | `nemotron-mini` | 4B | ~6 GB | Assistant. Function calling, RAG, edge deployment. |
+| `nano` | `nemotron-3-nano` | 3.5B active / 30B MoE | ~20 GB | **Reasoning.** Unified reasoning + non-reasoning agent. |
+| `nano-omni` | `nemotron3:33b` | 33B multimodal | ~24 GB | Multimodal (video + audio + image + text). Requires a multimodal-capable Ollama build. |
+| `super` | `nemotron-3-super` | 12B active / 120B MoE | ~80 GB | **Reasoning.** Strong agent / IT automation. |
+| `cascade` | `nemotron-cascade-2` | 3B active / 30B MoE | ~20 GB | Agentic, low active-param footprint. |
+| `70b` | `nemotron` | 70B (Llama-3.1-Nemotron) | ~48 GB (q4) | Assistant. RLHF-tuned for helpfulness. |
+
+Reasoning variants: **Nano**, **Super**. Assistant variants: **Mini**, **70B**.
+
+Links: [NVIDIA Nemotron hub](https://developer.nvidia.com/nemotron) · [NVIDIA Open Model License](https://developer.download.nvidia.com/licenses/nvidia-open-model-license-agreement.pdf)
+
 ## By VRAM
 
 ### 4–8 GB VRAM

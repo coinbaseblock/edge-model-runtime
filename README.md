@@ -78,6 +78,9 @@ bash scripts/00-install.sh
 # 3. Pull a model
 bash scripts/04-pull-model.sh qwen2.5-coder:7b
 
+# Or pull a Nemotron variant (default: nano — see docs/MODEL-RECOMMENDATIONS.md)
+bash scripts/0a-pull-nemotron.sh nano
+
 # 4. Open WebUI
 open http://localhost:3000
 ```
