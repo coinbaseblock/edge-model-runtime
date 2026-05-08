@@ -10,6 +10,7 @@
 #   bash scripts/35-apply-web-patch.sh <patch-file> --commit   # apply + commit
 #   bash scripts/35-apply-web-patch.sh <patch-file> --commit --push
 #   bash scripts/35-apply-web-patch.sh <patch-file> --commit --push --pr
+#   bash scripts/35-apply-web-patch.sh <patch-file> --force-dirty   # allow WIP
 #   cat patch | bash scripts/35-apply-web-patch.sh -           # stdin
 #
 # Companion to docs/WEB-CODEX-PLAYBOOK.md.
@@ -24,26 +25,38 @@ shift || true
 DO_COMMIT=0
 DO_PUSH=0
 DO_PR=0
+FORCE_DIRTY=0
 COMMIT_MSG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --commit) DO_COMMIT=1 ;;
-    --push)   DO_PUSH=1 ;;
-    --pr)     DO_PR=1 ;;
-    -m)       COMMIT_MSG="${2:-}"; shift ;;
+    --commit)      DO_COMMIT=1 ;;
+    --push)        DO_PUSH=1 ;;
+    --pr)          DO_PR=1 ;;
+    --force-dirty) FORCE_DIRTY=1 ;;
+    -m)            COMMIT_MSG="${2:-}"; shift ;;
     *) die "Unknown flag: $1" ;;
   esac
   shift
 done
 
-[[ -n "$PATCH_SRC" ]] || die "usage: $0 <patch-file|-> [--commit] [--push] [--pr] [-m 'msg']"
+[[ -n "$PATCH_SRC" ]] || die "usage: $0 <patch-file|-> [--commit] [--push] [--pr] [--force-dirty] [-m 'msg']"
 
 cd "$REPO_ROOT"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not in a git repo"
 
+# Refuse to clobber WIP unless explicitly opted in. With --commit we'd
+# otherwise sweep the user's unstaged work into the same commit silently.
+if [[ $FORCE_DIRTY -eq 0 ]] && ! git diff --quiet HEAD -- 2>/dev/null; then
+  err "Working tree has uncommitted changes."
+  log "Re-run with --force-dirty to apply on top, or stash first:"
+  log "  git stash push -u -m 'before web-codex'"
+  exit 1
+fi
+
 # Stage the patch into a tmp file (handles stdin too)
 PATCH_FILE="$(mktemp -t web-codex.XXXXXX.patch)"
-trap 'rm -f "$PATCH_FILE"' EXIT
+ERR_FILE="$(mktemp -t web-codex.XXXXXX.err)"
+trap 'rm -f "$PATCH_FILE" "$ERR_FILE"' EXIT
 if [[ "$PATCH_SRC" == "-" ]]; then
   cat > "$PATCH_FILE"
 else
@@ -54,9 +67,9 @@ fi
 [[ -s "$PATCH_FILE" ]] || die "Patch is empty"
 
 section "🔍 Checking patch applies cleanly"
-if ! git apply --check "$PATCH_FILE" 2>/tmp/web-codex.err; then
+if ! git apply --check "$PATCH_FILE" 2>"$ERR_FILE"; then
   err "git apply --check failed:"
-  cat /tmp/web-codex.err >&2
+  cat "$ERR_FILE" >&2
   log ""
   log "Paste this error back into the WebUI chat and ask the model to"
   log "regenerate ONLY the failing hunks as a fresh unified diff."

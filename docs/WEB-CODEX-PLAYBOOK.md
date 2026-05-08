@@ -102,16 +102,20 @@ Rules:
 # แค่ apply เพื่อ review ก่อน commit
 make apply-patch P=/tmp/web.patch
 
-# apply + commit
+# apply + commit (เว้นวรรคใน MSG ใช้ได้)
 make apply-patch P=/tmp/web.patch COMMIT=1 MSG="fix: handle empty config"
 
 # apply + commit + push + เปิด PR (ต้องเคย gh auth login แล้ว)
 make apply-patch P=/tmp/web.patch COMMIT=1 PUSH=1 PR=1
+
+# กรณีตั้งใจ apply ทับ WIP ที่ค้างใน tree
+make apply-patch P=/tmp/web.patch FORCE=1
 ```
 
-เบื้องหลังคือ `scripts/35-apply-web-patch.sh` ที่จะ `git apply --check` ก่อน,
-apply, แล้ว commit/push/PR ตามแฟล็ก ถ้า `--check` ไม่ผ่านจะหยุดและพิมพ์ error
-ให้คุณวางกลับเข้า WebUI เพื่อขอ patch ที่แก้แล้ว
+เบื้องหลังคือ `scripts/35-apply-web-patch.sh` ทำสามขั้น:
+1. ปฏิเสธถ้า working tree สกปรก เพื่อกัน WIP โดน sweep รวม commit (ใช้ `FORCE=1` ข้าม)
+2. `git apply --check` ก่อน — ถ้าไม่ผ่านจะพิมพ์ error ให้วางกลับเข้า WebUI
+3. apply แล้ว commit / push / เปิด PR ตามแฟล็ก
 
 ### วิธีแมนนวล (ทำเองทีละขั้น)
 
