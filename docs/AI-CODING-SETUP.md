@@ -167,7 +167,7 @@ explicit tool calls stay local. If you need *full* offline, use Option A.
 
 
 > ต้องการทำงาน "Codex/Claude Code style" ผ่านหน้าเว็บอย่างเดียว? ดูคู่มือ
-> [`docs/WEB-CODEX-PLAYBOOK.md`](./WEB-CODEX-PLAYBOOK.md).
+> [`docs/WEB-CODEX-PLAYBOOK.md`](./WEB-CODEX-PLAYBOOK.md) (ภาษาไทย, step-by-step) — รวม workflow แบบ Plan → Patch และวิธี `git apply` จริงใน repo.
 
 ## Option C — Unified Web UI (cloud + local in one dropdown)
 
