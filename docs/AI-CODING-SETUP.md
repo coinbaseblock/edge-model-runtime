@@ -114,10 +114,16 @@ bash scripts/31-setup-claude-code.sh
 
 That script:
 1. Confirms `edge-ollama` is running and the coding model is installed.
-2. Installs the Claude Code CLI (`npm i -g @anthropic-ai/claude-code`) if missing.
-3. Registers two MCP servers on your **user-scoped** Claude Code config:
+2. Installs Node.js 20 if missing — via [`nvm`](https://github.com/nvm-sh/nvm)
+   when run as a normal user (no sudo, lives in `~/.nvm`), or via the NodeSource
+   apt repo when run as root. Override with `EDGE_NODE_INSTALL=nvm|nodesource|skip`.
+3. Installs the Claude Code CLI (`npm i -g @anthropic-ai/claude-code`).
+4. Registers two MCP servers on your **user-scoped** Claude Code config:
    - `ollama`  → `python3 scripts/lib/ollama-mcp-server.py`
    - `github`  → `@modelcontextprotocol/server-github` (only if `GITHUB_TOKEN` is set)
+
+> If you already exported `GITHUB_TOKEN` and need to re-run with sudo (for the
+> NodeSource path), use `sudo -E` so the env var survives.
 
 ### Log in (uses your subscription)
 
