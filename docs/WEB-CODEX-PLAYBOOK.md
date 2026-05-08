@@ -68,12 +68,53 @@ Context:
 Tasks:
 1) วิเคราะห์ไฟล์ที่เกี่ยวข้อง
 2) เสนอแผนแก้ไขแบบสั้น
-3) สร้าง patch รายไฟล์
+3) สร้าง patch รายไฟล์ (unified diff)
 4) ระบุคำสั่งทดสอบ
 5) สรุปผลลัพธ์และความเสี่ยง
 ```
 
-## 4) เพิ่ม cloud model ใน dropdown เดียวกัน (optional)
+### โหมดใช้งานที่ใกล้ Codex ที่สุด (แนะนำ)
+
+เพื่อให้ได้ผลลัพธ์เหมือน "agent coding" มากขึ้น ให้แยกเป็น 2 รอบ:
+
+- **รอบ A (Plan):** ให้โมเดลวิเคราะห์ไฟล์ที่ต้องแก้ + เสนอแผนสั้น ๆ
+- **รอบ B (Patch):** ให้โมเดลส่งเฉพาะ `unified diff` ที่ apply ได้ทันที
+
+Prompt สำหรับรอบ B:
+
+```text
+Now output ONLY a unified diff patch.
+Rules:
+- No explanation text outside the diff.
+- Keep changes minimal.
+- Include file paths relative to repo root.
+```
+
+## 4) ขั้นตอน apply patch กลับเข้า git repo (นอกเบราว์เซอร์)
+
+แม้จะทำงานหลักผ่านเว็บ แต่การแก้ไฟล์จริงยังต้อง apply ใน repo ของคุณ:
+
+```bash
+# 1) วาง diff จากหน้าเว็บลงไฟล์
+cat > /tmp/web-codex.patch
+
+# 2) ตรวจว่า patch apply ได้
+git apply --check /tmp/web-codex.patch
+
+# 3) apply จริง
+git apply /tmp/web-codex.patch
+
+# 4) รันเทสต์
+bash scripts/03-verify.sh
+
+# 5) ดู diff ก่อน commit
+git status --short
+git diff
+```
+
+> ถ้า `git apply --check` ไม่ผ่าน ให้ส่ง error กลับไปในแชต แล้วขอให้โมเดล regenerate patch เฉพาะจุดที่พัง
+
+## 5) เพิ่ม cloud model ใน dropdown เดียวกัน (optional)
 
 ถ้าต้องการสลับ local/cloud แบบหน้าเว็บเดียว:
 
@@ -83,7 +124,7 @@ bash scripts/32-setup-cloud-models.sh
 
 แล้ว refresh หน้าเว็บ จะเลือก local Ollama และ Claude/GPT/Gemini ได้ใน model dropdown เดียวกัน
 
-## 5) Prompt พร้อมใช้งาน (copy/paste)
+## 6) Prompt พร้อมใช้งาน (copy/paste)
 
 ### A) Refactor แบบปลอดภัย
 
@@ -122,16 +163,33 @@ From the proposed patch, draft a PR description with:
 - test evidence
 ```
 
-## 6) ข้อจำกัดที่ควรรู้
+### D) Prompt สไตล์ "ลงมือแก้เลย"
+
+```text
+Act as a coding agent for this repository.
+First: list assumptions.
+Second: provide a 3-7 bullet plan.
+Third: output a minimal unified diff patch.
+Fourth: provide exact test commands and expected results.
+Fifth: provide rollback steps.
+```
+
+## 7) ข้อจำกัดที่ควรรู้
 
 - ผ่านเว็บจะไม่สามารถแก้ไฟล์ในเครื่องได้อัตโนมัติเท่า CLI agent
 - แนวทางที่เหมาะคือ: ให้โมเดลสร้าง patch/diff แล้วคุณ apply จริงด้วย git
 - ถ้าต้องการ agent แก้ไฟล์อัตโนมัติ ให้ใช้ Option A/B/D ใน `docs/AI-CODING-SETUP.md`
 
-## 7) แนะนำโมเดลสำหรับงานโค้ด
+## 8) แนะนำโมเดลสำหรับงานโค้ด
 
 - แม่นและคุ้ม: `qwen2.5-coder:14b`
 - เครื่องเล็ก: `qwen2.5-coder:7b`
 - งานยาก/ไฟล์ใหญ่: `qwen2.5-coder:32b`
 
 ดูรายละเอียดเพิ่มใน `docs/MODEL-RECOMMENDATIONS.md`
+
+## 9) Checklist ก่อนส่ง PR
+
+- รันเทสต์ที่เกี่ยวข้องจริงในเครื่อง (`bash scripts/03-verify.sh` อย่างน้อย)
+- แนบผลลัพธ์คำสั่งที่สำคัญ (pass/fail) ในคำอธิบาย PR
+- ถ้าเป็น patch ใหญ่ ให้แยก commit เป็นก้อนเล็ก ๆ ที่รีวิวง่าย
