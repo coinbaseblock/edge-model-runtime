@@ -165,6 +165,10 @@ explicit tool calls stay local. If you need *full* offline, use Option A.
 
 ---
 
+
+> ต้องการทำงาน "Codex/Claude Code style" ผ่านหน้าเว็บอย่างเดียว? ดูคู่มือ
+> [`docs/WEB-CODEX-PLAYBOOK.md`](./WEB-CODEX-PLAYBOOK.md).
+
 ## Option C — Unified Web UI (cloud + local in one dropdown)
 
 You already get Open WebUI on `http://localhost:3000` for chatting with the
