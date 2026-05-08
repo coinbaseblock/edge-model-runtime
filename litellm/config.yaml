@@ -1,0 +1,62 @@
+# =============================================================================
+# litellm/config.yaml — LiteLLM proxy model registry
+# =============================================================================
+# Defines which cloud models the proxy exposes. Each `model_name` is the
+# public id seen by clients (Open WebUI dropdown, opencode, curl). The
+# `litellm_params.model` field tells LiteLLM which provider/model to call.
+#
+# Provider keys are read from the container env (set in .env, see
+# .env.example). Models whose key is empty will fail at call-time with a
+# clear "missing api key" error — they still show up in the catalogue but
+# are inert. That's intentional: edit this file to remove what you don't
+# want to see.
+#
+# Reload after editing: `docker compose --profile cloud up -d litellm`
+# =============================================================================
+
+model_list:
+  # --- Anthropic (Claude) ----------------------------------------------------
+  - model_name: claude-opus-4-7
+    litellm_params:
+      model: anthropic/claude-opus-4-7
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- OpenAI ----------------------------------------------------------------
+  # Uncomment after setting OPENAI_PROVIDER_API_KEY in .env.
+  # - model_name: gpt-4o
+  #   litellm_params:
+  #     model: openai/gpt-4o
+  #     api_key: os.environ/OPENAI_API_KEY
+  # - model_name: gpt-4o-mini
+  #   litellm_params:
+  #     model: openai/gpt-4o-mini
+  #     api_key: os.environ/OPENAI_API_KEY
+
+  # --- Google Gemini ---------------------------------------------------------
+  # Uncomment after setting GEMINI_API_KEY in .env.
+  # - model_name: gemini-1.5-pro
+  #   litellm_params:
+  #     model: gemini/gemini-1.5-pro
+  #     api_key: os.environ/GEMINI_API_KEY
+
+litellm_settings:
+  # Drop unsupported params silently rather than 400-ing the client. Open
+  # WebUI sometimes sends OpenAI-only fields (e.g. `frequency_penalty`) to
+  # Anthropic models, which would otherwise fail.
+  drop_params: true
+  # Surface upstream provider errors verbatim instead of LiteLLM's wrapper.
+  set_verbose: false
+
+general_settings:
+  # Clients must present this as the OpenAI API key. Set in .env.
+  master_key: os.environ/LITELLM_MASTER_KEY

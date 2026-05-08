@@ -30,7 +30,7 @@ docker system df
 
 section "📦 Docker images for this stack"
 load_env
-for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE; do
+for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE; do
   img="${!var:-}"
   [[ -z "$img" ]] && continue
   if docker image inspect "$img" >/dev/null 2>&1; then

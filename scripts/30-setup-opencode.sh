@@ -56,6 +56,25 @@ fi
 
 log ""
 section "✅ Done"
+
+# Detect whether the LiteLLM cloud proxy has been set up — if so, the user
+# can also pick Claude / GPT / Gemini from the OpenCode model picker, but
+# only after exporting LITELLM_MASTER_KEY into the shell environment.
+cloud_hint=""
+if [[ -f "$REPO_ROOT/.env" ]] && grep -qE '^[[:space:]]*LITELLM_MASTER_KEY=.+' "$REPO_ROOT/.env"; then
+  cloud_hint=$(cat <<'EOF'
+
+Cloud models (via LiteLLM) are also wired into opencode.json. To use them,
+load the master key into your shell first:
+
+  set -a && source .env && set +a
+  opencode
+
+Tip: add that to your shell rc, or use direnv, so you don't have to repeat it.
+EOF
+)
+fi
+
 cat <<EOF
 Start an OpenCode session in this repo:
 
@@ -64,6 +83,7 @@ Start an OpenCode session in this repo:
 
 Default model is set in opencode.json (currently: ollama/$MODEL).
 Switch models inside OpenCode with the model picker, or edit opencode.json.
+$cloud_hint
 
 Full guide: docs/AI-CODING-SETUP.md
 EOF

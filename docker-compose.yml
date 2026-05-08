@@ -87,6 +87,13 @@ services:
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
       ENABLE_SIGNUP: ${WEBUI_ENABLE_SIGNUP:-true}
       DEFAULT_USER_ROLE: ${WEBUI_DEFAULT_USER_ROLE:-pending}
+      # When the optional `cloud` profile is up, these point at LiteLLM and
+      # cloud models (Claude, etc.) appear in the same model dropdown as
+      # local Ollama models. If LiteLLM is not running, Open WebUI logs a
+      # warning at startup and silently shows only the local models.
+      ENABLE_OPENAI_API: ${ENABLE_OPENAI_API:-true}
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-noop}
 
     volumes:
       - ${AI_DATA_ROOT}/open-webui:/app/backend/data
@@ -98,6 +105,58 @@ services:
       driver: "json-file"
       options:
         max-size: "50m"
+        max-file: "2"
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: LiteLLM proxy — exposes cloud LLMs (Claude, GPT, Gemini …)
+  # as an OpenAI-compatible endpoint so Open WebUI shows them in the same
+  # model dropdown as local Ollama models. Opt-in: requires API keys and
+  # an explicit profile because outbound traffic is involved.
+  #
+  # Enable: bash scripts/32-setup-cloud-models.sh    (one-time wizard)
+  # Or:     docker compose --profile cloud up -d litellm
+  # ---------------------------------------------------------------------------
+  litellm:
+    image: ${LITELLM_IMAGE}
+    container_name: edge-litellm
+    profiles: ["cloud"]
+    restart: unless-stopped
+
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+
+    environment:
+      # Reads cloud provider keys from .env. Empty values disable that provider
+      # in the proxy (LiteLLM reports `unauthorized` for that model only).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_PROVIDER_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Master key clients (Open WebUI, opencode, curl, …) must present.
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_LOG: ${LITELLM_LOG:-INFO}
+
+    command:
+      - --config=/app/config.yaml
+      - --port=4000
+      - --host=0.0.0.0
+
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health/liveliness || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    networks:
+      - edge-ai-net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
         max-file: "2"
 
   # ---------------------------------------------------------------------------
