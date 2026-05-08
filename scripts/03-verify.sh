@@ -40,6 +40,7 @@ fi
 section "🔌 API health"
 ollama_url="http://localhost:${OLLAMA_PORT:-11434}"
 webui_url="http://localhost:${WEBUI_PORT:-3000}"
+litellm_url="http://localhost:${LITELLM_PORT:-4000}"
 
 if curl -sf "$ollama_url/api/tags" >/dev/null 2>&1; then
   if command -v jq >/dev/null 2>&1; then
@@ -56,6 +57,21 @@ if curl -sf "$webui_url" >/dev/null 2>&1; then
   ok "WebUI: OK"
 else
   err "WebUI: unreachable at $webui_url"
+fi
+
+# LiteLLM is opt-in — only check it if the container exists.
+if docker ps --format '{{.Names}}' | grep -qx 'edge-litellm'; then
+  if curl -sf "$litellm_url/health/liveliness" >/dev/null 2>&1; then
+    if command -v jq >/dev/null 2>&1 && [[ -n "${LITELLM_MASTER_KEY:-}" ]]; then
+      n=$(curl -sf -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+            "$litellm_url/v1/models" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "?")
+      ok "LiteLLM: OK ($n cloud model(s))"
+    else
+      ok "LiteLLM: OK"
+    fi
+  else
+    err "LiteLLM: unreachable at $litellm_url"
+  fi
 fi
 
 log ""

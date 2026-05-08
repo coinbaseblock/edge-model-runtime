@@ -1,15 +1,14 @@
 # AI-assisted coding on this stack
 
-Two ways to use this runtime as the brain for AI-assisted coding. Pick one — or
-run both side by side.
+Three ways to use this runtime. Pick one — they coexist.
 
-| | Option A · OpenCode | Option B · Claude Code + Ollama worker |
-|---|---|---|
-| Main agent | OpenCode (open source) | Claude Code (subscription) |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload |
-| Cost | $0 | Claude subscription |
-| Privacy | Code never leaves the host | Main edits go through Claude; offloaded work stays local |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor |
+| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI |
+|---|---|---|---|
+| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) |
+| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown |
+| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu |
+| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud |
+| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -163,6 +162,87 @@ The MCP server (`scripts/lib/ollama-mcp-server.py`) only talks to
 `http://localhost:11434`. Anything routed through `ollama_*` tools never
 leaves the host. The main Claude conversation still goes to Anthropic — only
 explicit tool calls stay local. If you need *full* offline, use Option A.
+
+---
+
+## Option C — Unified Web UI (cloud + local in one dropdown)
+
+You already get Open WebUI on `http://localhost:3000` for chatting with the
+local Ollama models. Option C adds a small **LiteLLM** proxy that fronts
+cloud providers (Anthropic, OpenAI, Gemini, …) as an OpenAI-compatible
+endpoint, so cloud models show up in the **same model dropdown** as your
+local ones. You log in once, pick a model from the menu, and chat — no
+per-tool config.
+
+### One-time setup
+
+```bash
+bash scripts/32-setup-cloud-models.sh
+```
+
+That wizard:
+1. Generates a `LITELLM_MASTER_KEY` in `.env` (used by Open WebUI to talk
+   to the proxy).
+2. Prompts for `ANTHROPIC_API_KEY` if missing and saves it to `.env`.
+   Press Enter to skip — you can edit `.env` later and re-run.
+3. Brings up the `cloud` profile (`docker compose --profile cloud up -d
+   litellm`) and recreates Open WebUI so it picks up the new endpoint.
+4. Lists the cloud models LiteLLM is now serving.
+
+### Use it from the browser
+
+1. Open `http://localhost:3000` in your browser.
+2. Click the model dropdown (top-left). Local Ollama models and Claude
+   (or any cloud model you've enabled) appear in the same list.
+3. Pick one and chat.
+
+### Use it from OpenCode (TUI)
+
+The same LiteLLM proxy is wired into [`opencode.json`](../opencode.json)
+under a `litellm` provider, so the OpenCode model picker shows both
+`ollama/...` and `litellm/claude-...` entries.
+
+The proxy requires the master key, which lives in `.env` (gitignored).
+Load it into the shell before starting OpenCode:
+
+```bash
+set -a && source .env && set +a
+opencode
+```
+
+Use [direnv](https://direnv.net/) to make that automatic per directory.
+
+### Adding more providers
+
+Edit `.env`:
+
+```env
+OPENAI_PROVIDER_API_KEY=sk-...
+GEMINI_API_KEY=...
+```
+
+Then uncomment the matching block in
+[`litellm/config.yaml`](../litellm/config.yaml) and re-run
+`bash scripts/32-setup-cloud-models.sh`. Anything you don't want listed,
+delete from that file.
+
+### Stopping the cloud proxy
+
+The local stack keeps running:
+
+```bash
+docker compose --profile cloud stop litellm
+```
+
+The Open WebUI dropdown will fall back to local-only models on next
+refresh.
+
+### Privacy note
+
+Calls routed to a cloud model leave your host (that's the whole point —
+they're cloud models). Calls to local Ollama models still never leave.
+LiteLLM logs requests at `INFO` level by default — set `LITELLM_LOG=WARNING`
+in `.env` to quiet that.
 
 ---
 

@@ -14,6 +14,19 @@
         "deepseek-coder-v2:16b": { "name": "DeepSeek Coder V2 16B (local)" },
         "llama3.1:8b": { "name": "Llama 3.1 8B (local)" }
       }
+    },
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LiteLLM (cloud via local proxy)",
+      "options": {
+        "baseURL": "http://localhost:4000/v1",
+        "apiKey": "{env:LITELLM_MASTER_KEY}"
+      },
+      "models": {
+        "claude-opus-4-7":   { "name": "Claude Opus 4.7   (cloud)" },
+        "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6 (cloud)" },
+        "claude-haiku-4-5":  { "name": "Claude Haiku 4.5  (cloud)" }
+      }
     }
   },
   "model": "ollama/qwen2.5-coder:7b",
