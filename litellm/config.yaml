@@ -11,7 +11,7 @@
 # are inert. That's intentional: edit this file to remove what you don't
 # want to see.
 #
-# Reload after editing: `docker compose --profile cloud up -d litellm`
+# Reload after editing: `docker compose --profile cloud up -d --force-recreate litellm`
 # =============================================================================
 
 model_list:
@@ -30,6 +30,30 @@ model_list:
     litellm_params:
       model: anthropic/claude-haiku-4-5-20251001
       api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- Local Ollama (exposed through LiteLLM so Anthropic-format clients ----
+  # like Claude Code can hit them via `/v1/messages`).
+  #
+  # The `model_name` is the public id the client picks; `model:` tells
+  # LiteLLM which Ollama tag to call. `api_base` points at the Ollama
+  # service on the shared compose network (`edge-ai-net`).
+  #
+  # Edit / add entries to match what `ollama list` shows on the host. The
+  # tags below are the ones recommended in docs/MODEL-RECOMMENDATIONS.md.
+  - model_name: qwen2.5-coder
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:7b
+      api_base: http://ollama:11434
+
+  - model_name: qwen2.5-coder-large
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:32b
+      api_base: http://ollama:11434
+
+  - model_name: nemotron-nano
+    litellm_params:
+      model: ollama_chat/nemotron3:nano-instruct
+      api_base: http://ollama:11434
 
   # --- OpenAI ----------------------------------------------------------------
   # Uncomment after setting OPENAI_PROVIDER_API_KEY in .env.

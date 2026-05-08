@@ -1,14 +1,14 @@
 # AI-assisted coding on this stack
 
-Three ways to use this runtime. Pick one — they coexist.
+Four ways to use this runtime. Pick one — they coexist.
 
-| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI |
-|---|---|---|---|
-| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) |
-| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu |
-| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work |
+| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI | Option D · Claude Code TUI on local Ollama |
+|---|---|---|---|---|
+| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | TUI (terminal) |
+| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown | Claude Code (TUI) — but the brain is Ollama |
+| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu | 100% local Ollama (via LiteLLM Anthropic adapter) |
+| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud | $0 |
+| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work | you like Claude Code's UX but want a local model |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -243,6 +243,91 @@ Calls routed to a cloud model leave your host (that's the whole point —
 they're cloud models). Calls to local Ollama models still never leave.
 LiteLLM logs requests at `INFO` level by default — set `LITELLM_LOG=WARNING`
 in `.env` to quiet that.
+
+---
+
+## Option D — Claude Code TUI, local Ollama brain
+
+Same `claude` CLI as Option B, but instead of going to Anthropic the
+requests go to the LiteLLM proxy from Option C, which forwards them to a
+local Ollama model. You get the polished Claude Code UI without burning
+subscription tokens — useful for routine edits, drafts, and "rubber-duck"
+work where cloud Claude is overkill.
+
+The mechanism is a stock Claude Code feature: it reads
+`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` from the environment and
+calls `/v1/messages` on whatever URL you point it at. LiteLLM speaks that
+endpoint natively for Ollama backends.
+
+```
+┌──────────────┐  /v1/messages   ┌────────────┐   /api/chat   ┌─────────┐
+│  claude TUI  │ ───────────────►│  LiteLLM   │ ─────────────►│ Ollama  │
+│ (unmodified) │  Anthropic JSON │ (Anthropic │  Ollama JSON  │  (GPU)  │
+└──────────────┘                 │  adapter)  │               └─────────┘
+                                 └────────────┘
+```
+
+### Prerequisites
+
+- Option C set up first (so LiteLLM is configured and `LITELLM_MASTER_KEY`
+  exists in `.env`).
+- The `claude` CLI installed (`bash scripts/31-setup-claude-code.sh` — you
+  do not need to log in for Option D, the wrapper bypasses login).
+
+### One-time setup
+
+```bash
+bash scripts/33-setup-claude-local.sh                       # default: qwen2.5-coder (7B)
+# or pick another LiteLLM model_name:
+bash scripts/33-setup-claude-local.sh qwen2.5-coder-large   # 32B, much better tool calls
+bash scripts/33-setup-claude-local.sh nemotron-nano
+```
+
+That script:
+1. Verifies `edge-ollama` and `edge-litellm` are running (starts LiteLLM if not).
+2. Verifies the requested model is registered in
+   [`litellm/config.yaml`](../litellm/config.yaml) and the underlying Ollama
+   tag is pulled (offers to pull if missing).
+3. Recreates LiteLLM if needed so newly added entries become visible.
+4. Installs a wrapper script (`claude-local`, or `claude-local-<model>`) that
+   exports the right env vars and execs `claude`.
+
+### Use it
+
+```bash
+cd /path/to/anywhere
+claude-local                      # qwen2.5-coder
+claude-local-qwen2.5-coder-large  # 32B, if you ran the 32B setup
+```
+
+The TUI is identical to a normal `claude` session. The model line at the
+top shows the local model name. All inference happens on the GPU.
+
+The plain `claude` command (no `-local` suffix) is **untouched** and still
+talks to Anthropic via your subscription.
+
+### Adding a new local model
+
+1. Pull it: `bash scripts/04-pull-model.sh <ollama-tag>`
+2. Add an entry under `model_list:` in
+   [`litellm/config.yaml`](../litellm/config.yaml):
+   ```yaml
+   - model_name: my-model
+     litellm_params:
+       model: ollama_chat/<ollama-tag>
+       api_base: http://ollama:11434
+   ```
+3. `bash scripts/33-setup-claude-local.sh my-model`
+
+### Caveats
+
+- Claude Code expects Anthropic-style tool calls. 7B-class models mis-format
+  them often — fine for chat / single-file edits, flaky for multi-step tool
+  use. Use `qwen2.5-coder-large` (32B) when you need reliable tool use.
+- The hardest reasoning still loses to cloud Claude. For multi-file refactors
+  prefer Option B (cloud brain, local worker).
+- LiteLLM logs every request at `INFO` by default. Set
+  `LITELLM_LOG=WARNING` in `.env` to quiet the container logs.
 
 ---
 
