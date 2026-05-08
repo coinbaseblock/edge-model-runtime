@@ -29,6 +29,7 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 - 🧠 **Local AI coding agent** — drive [OpenCode (100% offline)](./docs/AI-CODING-SETUP.md#option-a--opencode-100-local) or [Claude Code + Ollama-as-worker via MCP](./docs/AI-CODING-SETUP.md#option-b--claude-code--ollama-as-worker)
 - ☁️ **Unified Web UI** — optional [LiteLLM proxy](./docs/AI-CODING-SETUP.md#option-c--unified-web-ui-cloud--local-in-one-dropdown) puts Claude / GPT / Gemini in the same Open WebUI dropdown as your local models, also surfaced in OpenCode
 - 🖥️ **Agents in the browser** — optional [ttyd-based terminal](./docs/AI-CODING-SETUP.md#option-d--agents-in-the-browser-no-terminal-needed) launches OpenCode or Claude Code from a menu at `http://localhost:7681` — no SSH client required
+- 🪪 **Claude Code with local brain** — point the `claude` CLI at LiteLLM (Option E) to drive [Claude's TUI with a local Ollama model](./docs/AI-CODING-SETUP.md#option-e--claude-code-tui-driving-a-local-model) — same UX as cloud Claude Code, $0 per token
 
 ---
 

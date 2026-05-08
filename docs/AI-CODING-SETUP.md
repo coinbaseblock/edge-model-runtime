@@ -1,14 +1,14 @@
 # AI-assisted coding on this stack
 
-Four ways to use this runtime. Pick one — they coexist.
+Five ways to use this runtime. Pick one — they coexist.
 
-| | A · OpenCode | B · Claude Code + Ollama | C · Unified Web Chat | D · Agents in browser |
-|---|---|---|---|---|
-| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | ttyd terminal (browser) |
-| What you get | Local agentic coding | Cloud agent + local offload | Chat with any model from a menu | Both A and B inside a browser |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama | Local + cloud in one dropdown | Same as A and B |
-| Cost | $0 | Claude subscription | $0 local + pay per cloud token | Same as A and B |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models | you only have a browser (tablet, kiosk, ssh-less host) |
+| | A · OpenCode | B · Claude Code + Ollama worker | C · Unified Web Chat | D · Agents in browser | E · Claude Code + local brain |
+|---|---|---|---|---|---|
+| Main interface | TUI | TUI | Open WebUI | ttyd terminal | TUI / ttyd |
+| What you get | Local agentic | Cloud agent + local offload | Chat with any model | A and B in a browser | Claude UI + Ollama brain |
+| Inference | 100% local | Cloud Claude **+** local | Local + cloud dropdown | Same as A and B | 100% local (via LiteLLM) |
+| Cost | $0 | Claude subscription | $0 + per-cloud-token | Same as A and B | $0 |
+| Best when | offline | hardest reasoning | quick chat | tablet, no SSH | you like Claude Code's UX but want local |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -316,6 +316,95 @@ docker compose --profile agents stop agents-web
 
 To rotate the password: clear `AGENTS_WEB_PASS` in `.env` and re-run
 `bash scripts/33-setup-agents-web.sh`.
+
+---
+
+## Option E — Claude Code TUI driving a local model
+
+The `claude` CLI is just a frontend — it does HTTP to whatever
+`ANTHROPIC_BASE_URL` points to. LiteLLM (already running for Option C)
+exposes Anthropic's `/v1/messages` shape, so Claude Code can talk to
+your local Qwen / DeepSeek / Nemotron without any of its requests
+leaving the host.
+
+### Prerequisites
+
+- LiteLLM up: `bash scripts/32-setup-cloud-models.sh` (cloud API key
+  optional — local models work without it)
+- The Ollama model you want pulled: `bash scripts/04-pull-model.sh qwen2.5-coder:7b`
+
+### One-time setup
+
+```bash
+bash scripts/34-setup-claude-local.sh                # default qwen2.5-coder
+bash scripts/34-setup-claude-local.sh qwen2.5-coder-large
+bash scripts/34-setup-claude-local.sh deepseek-coder
+```
+
+That writes `~/.claude/settings-edge-local-<model>.json` with these env
+overrides (mirrors the LM-Studio + Claude Code recipe shown in
+[this video](https://www.youtube.com/watch?v=Cyn_Dm05_eU), but using the
+LiteLLM proxy you already run):
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:4000",
+    "ANTHROPIC_AUTH_TOKEN": "<your LITELLM_MASTER_KEY>",
+    "ANTHROPIC_MODEL": "qwen2.5-coder",
+    ...
+  }
+}
+```
+
+### Use it
+
+```bash
+claude --settings ~/.claude/settings-edge-local-qwen2.5-coder.json
+```
+
+Or, more conveniently:
+
+```bash
+echo "alias claude-local='claude --settings ~/.claude/settings-edge-local-qwen2.5-coder.json'" >> ~/.bashrc
+```
+
+The TUI looks identical to cloud Claude Code — same slash commands,
+same agent loop, same MCP servers (Ollama, GitHub) — but every
+completion comes from your local GPU.
+
+In the **agents-web** browser terminal (Option D), this is menu
+option `[3]` — it auto-picks the most recently generated settings file.
+
+### Caveats
+
+- **Tool-use quality varies**. Claude Code emits Anthropic-format tool
+  calls; LiteLLM converts them, but the local model still has to obey
+  the schema. 7B models miss often; 32B is much more reliable; for
+  hardest jobs cloud Claude is still ahead.
+- **No subscription needed for this mode.** Cloud Claude is still
+  available with plain `claude` (no `--settings`).
+- **Model size matters**. `qwen2.5-coder-large` (32B) ~ 19 GB VRAM,
+  `qwen2.5-coder` (7B) ~ 4.7 GB. Pick what fits.
+
+### Adding a model
+
+Edit [`litellm/config.yaml`](../litellm/config.yaml), add a new entry under
+`model_list:`:
+
+```yaml
+- model_name: my-model
+  litellm_params:
+    model: ollama_chat/some-tag:latest
+    api_base: http://ollama:11434
+```
+
+Then reload LiteLLM and re-run the setup script:
+
+```bash
+docker compose --profile cloud up -d --force-recreate litellm
+bash scripts/34-setup-claude-local.sh my-model
+```
 
 ---
 
