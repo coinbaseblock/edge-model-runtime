@@ -26,6 +26,7 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 - 🔐 **No `chmod 777`** — proper permission management
 - 🩺 **Health checks** built in
 - 🤖 **Claude Code ready** — see [`.claude/`](./.claude) for AI-assisted workflows
+- 🧠 **Local AI coding agent** — drive [OpenCode (100% offline)](./docs/AI-CODING-SETUP.md#option-a--opencode-100-local) or [Claude Code + Ollama-as-worker via MCP](./docs/AI-CODING-SETUP.md#option-b--claude-code--ollama-as-worker)
 
 ---
 
@@ -233,7 +234,8 @@ edge-model-runtime/
 └── docs/
     ├── ARCHITECTURE.md
     ├── TROUBLESHOOTING.md
-    └── MODEL-RECOMMENDATIONS.md
+    ├── MODEL-RECOMMENDATIONS.md
+    └── AI-CODING-SETUP.md      # OpenCode / Claude Code + local Ollama worker
 ```
 
 ---
