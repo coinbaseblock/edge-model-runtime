@@ -17,8 +17,8 @@ help:
 	@echo "  make claude-local  - launch Claude Code TUI on a local Ollama model (Option D)"
 	@echo "  make claude-cloud  - launch Claude Code TUI on Anthropic (Option B, brain) + local MCP worker"
 	@echo "  make cloud-models  - register cloud models (Claude/GPT/Gemini) into the WebUI dropdown (Option C)"
-	@echo "  make apply-patch P=/tmp/x.patch [COMMIT=1 PUSH=1 PR=1]"
-	@echo "                     - apply a patch produced in WebUI (Web Codex flow), optional commit/push/PR"
+	@echo "  make apply-patch P=/tmp/x.patch [COMMIT=1 PUSH=1 PR=1 FORCE=1] [MSG=\"...\"]"
+	@echo "                     - apply a patch from WebUI (Web Codex flow); refuses dirty tree unless FORCE=1"
 	@echo ""
 	@echo "Dev:"
 	@echo "  make setup         - bootstrap local tooling"
@@ -40,7 +40,7 @@ lint:
 
 test:
 	cp .env.example .env.ci
-	sed -i 's|^WEBUI_SECRET_KEY=$|WEBUI_SECRET_KEY=local-test-key|' .env.ci
+	sed -i 's|^WEBUI_SECRET_KEY=$$|WEBUI_SECRET_KEY=local-test-key|' .env.ci
 	docker compose --env-file .env.ci --env-file .env.versions config > /dev/null
 	@if rg -n '^[[:space:]]*[^#]*chmod[[:space:]]+(-[A-Za-z]+[[:space:]]+)?777' scripts/; then \
 		echo "FAIL: chmod 777 found"; exit 1; \
@@ -82,7 +82,12 @@ down:
 	bash scripts/02-stop.sh
 
 webui: up
-	@URL="http://localhost:$${WEBUI_PORT:-3000}"; \
+	@PORT="$${WEBUI_PORT:-}"; \
+	if [ -z "$$PORT" ] && [ -f .env ]; then \
+	  PORT="$$(sed -n 's/^WEBUI_PORT=//p' .env | tail -1)"; \
+	fi; \
+	PORT="$${PORT:-3000}"; \
+	URL="http://localhost:$$PORT"; \
 	echo "Open WebUI: $$URL"; \
 	if   command -v xdg-open >/dev/null 2>&1; then xdg-open "$$URL" >/dev/null 2>&1 || true; \
 	elif command -v open      >/dev/null 2>&1; then open      "$$URL" >/dev/null 2>&1 || true; \
@@ -103,12 +108,16 @@ claude-cloud: up
 cloud-models:
 	bash scripts/32-setup-cloud-models.sh
 
-# Usage: make apply-patch P=/tmp/web.patch [COMMIT=1 PUSH=1 PR=1] [MSG="subject"]
+# Usage: make apply-patch P=/tmp/web.patch [COMMIT=1 PUSH=1 PR=1] [FORCE=1] [MSG="subject"]
+# MSG is forwarded as a single argument so spaces/quotes survive, e.g.:
+#   make apply-patch P=/tmp/x.patch COMMIT=1 MSG="fix: handle empty config"
+apply-patch: export APPLY_PATCH_MSG = $(MSG)
 apply-patch:
-	@test -n "$(P)" || { echo "Usage: make apply-patch P=<patch-file> [COMMIT=1 PUSH=1 PR=1] [MSG=...]"; exit 2; }
-	@FLAGS=""; \
-	[ "$(COMMIT)" = "1" ] && FLAGS="$$FLAGS --commit"; \
-	[ "$(PUSH)"   = "1" ] && FLAGS="$$FLAGS --push"; \
-	[ "$(PR)"     = "1" ] && FLAGS="$$FLAGS --pr"; \
-	if [ -n "$(MSG)" ]; then FLAGS="$$FLAGS -m $(MSG)"; fi; \
-	bash scripts/35-apply-web-patch.sh "$(P)" $$FLAGS
+	@test -n "$(P)" || { echo "Usage: make apply-patch P=<patch-file> [COMMIT=1 PUSH=1 PR=1] [FORCE=1] [MSG=\"...\"]"; exit 2; }
+	@set -- "$(P)"; \
+	[ "$(COMMIT)" = "1" ] && set -- "$$@" --commit; \
+	[ "$(PUSH)"   = "1" ] && set -- "$$@" --push; \
+	[ "$(PR)"     = "1" ] && set -- "$$@" --pr; \
+	[ "$(FORCE)"  = "1" ] && set -- "$$@" --force-dirty; \
+	if [ -n "$$APPLY_PATCH_MSG" ]; then set -- "$$@" -m "$$APPLY_PATCH_MSG"; fi; \
+	bash scripts/35-apply-web-patch.sh "$$@"
