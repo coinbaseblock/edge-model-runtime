@@ -101,12 +101,49 @@ bash scripts/03-verify.sh      # Health check
 
 ```bash
 bash scripts/04-pull-model.sh qwen2.5-coder:7b
+bash scripts/04b-sync-models.sh                     # pull every enabled entry in models.txt
 bash scripts/05-list-models.sh
 bash scripts/06-remove-model.sh qwen2.5-coder:7b   # specific model
 bash scripts/07-run-model.sh qwen2.5-coder:7b      # interactive CLI
 bash scripts/08-disk-report.sh                      # disk usage
 bash scripts/09-update-images.sh                    # update Docker images
 ```
+
+### Multi-model Runtime (declarative registry)
+
+For stacks that run more than one model, list them in [`models.txt`](./models.txt)
+instead of pulling each one by hand. Edit the file, run sync, done.
+
+```text
+# models.txt
+ollama:qwen2.5-coder:7b
+ollama:llama3.2:3b
+!ollama:mistral:7b      # leading '!' = disabled, kept on disk, not re-pulled
+```
+
+Format:
+
+| Token | Meaning |
+|---|---|
+| `provider:model:tag` | full spec (today only `ollama:` is supported; `vllm:`, `hf:` reserved) |
+| `model:tag` | provider defaults to `ollama` |
+| `# …` | comment (line or trailing) |
+| `!entry` | disabled — skipped by sync, **not deleted** |
+
+Then:
+
+```bash
+bash scripts/04b-sync-models.sh
+```
+
+The sync script:
+- pulls every **enabled** entry that isn't already installed
+- prints the **disabled** list for visibility, but never removes anything
+  (use `06-remove-model.sh` to actually free disk — keeps the 3-tier
+  cleanup invariant intact)
+
+Adding / removing a model is now an edit to a text file plus one command —
+no need to touch `docker-compose.yml` or any script.
 
 ### Cleanup levels
 
@@ -137,6 +174,7 @@ edge-model-runtime/
 ├── docker-compose.yml         # Inference + optional vLLM/training profiles
 ├── .env.example               # Copy to .env
 ├── .env.versions              # Pinned image versions
+├── models.txt                 # Declarative model registry (see Multi-model Runtime)
 ├── .gitignore
 ├── README.md
 ├── LICENSE
@@ -151,6 +189,7 @@ edge-model-runtime/
 │   ├── 02-stop.sh
 │   ├── 03-verify.sh
 │   ├── 04-pull-model.sh
+│   ├── 04b-sync-models.sh
 │   ├── 05-list-models.sh
 │   ├── 06-remove-model.sh
 │   ├── 07-run-model.sh
@@ -160,7 +199,8 @@ edge-model-runtime/
 │   ├── 20-wipe-models.sh
 │   ├── uninstall.sh
 │   └── lib/
-│       └── common.sh
+│       ├── common.sh
+│       └── models.sh
 │
 ├── training/
 │   ├── README.md
