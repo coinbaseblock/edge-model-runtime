@@ -26,6 +26,7 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 - 🔐 **No `chmod 777`** — proper permission management
 - 🩺 **Health checks** built in
 - 🤖 **Claude Code ready** — see [`.claude/`](./.claude) for AI-assisted workflows
+- 🧠 **Local AI coding agent** — drive [OpenCode (100% offline)](./docs/AI-CODING-SETUP.md#option-a--opencode-100-local) or [Claude Code + Ollama-as-worker via MCP](./docs/AI-CODING-SETUP.md#option-b--claude-code--ollama-as-worker)
 
 ---
 
@@ -110,6 +111,45 @@ open http://localhost:3000   # or http://<host-ip>:3000 from another machine
 ---
 
 ## 🎓 Usage
+
+### Upgrading an existing install
+
+You **do not** need `docker compose down` to pull updates. Models live on
+the host (`${AI_DATA_ROOT}/ollama`) — they survive every flow below. Only
+restart containers when `docker-compose.yml` or `.env.versions` actually
+changes.
+
+| What changed in the update | What to run |
+|---|---|
+| Only scripts / docs / `opencode.json` / `.claude/` | `git pull` — done. Running containers untouched. |
+| `docker-compose.yml` or `.env.example` | `git pull && bash scripts/01-start.sh` (Compose recreates only what changed). |
+| `.env.versions` (image bumps) | `git pull && bash scripts/09-update-images.sh`. |
+| Want a clean container restart anyway | `bash scripts/02-stop.sh && bash scripts/01-start.sh`. Models kept. |
+
+The simple **"works for any update"** recipe:
+
+```bash
+cd ~/edge-model-runtime
+git status                          # check for local edits (your .env is gitignored & safe)
+git pull                            # fetch latest
+bash scripts/03-verify.sh           # confirm stack is still healthy
+```
+
+After the AI-coding update specifically:
+
+```bash
+# Option A — local agent
+bash scripts/30-setup-opencode.sh
+
+# Option B — Claude Code + Ollama worker (re-run any time to refresh MCP wiring)
+GITHUB_TOKEN=ghp_xxx bash scripts/31-setup-claude-code.sh
+```
+
+If `git pull` complains about local changes, stash first:
+
+```bash
+git stash && git pull && git stash pop
+```
 
 ### Daily ops
 
@@ -233,7 +273,8 @@ edge-model-runtime/
 └── docs/
     ├── ARCHITECTURE.md
     ├── TROUBLESHOOTING.md
-    └── MODEL-RECOMMENDATIONS.md
+    ├── MODEL-RECOMMENDATIONS.md
+    └── AI-CODING-SETUP.md      # OpenCode / Claude Code + local Ollama worker
 ```
 
 ---

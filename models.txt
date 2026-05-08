@@ -24,3 +24,7 @@
 # ollama:qwen2.5-coder:7b
 # ollama:llama3.2:3b
 # !ollama:mistral:7b
+
+# AI-assisted coding (see docs/AI-CODING-SETUP.md):
+# ollama:qwen2.5-coder:7b      # default coding model for OpenCode / Claude MCP
+# ollama:nomic-embed-text      # only needed if you call ollama_embed
