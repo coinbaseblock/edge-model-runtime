@@ -100,13 +100,18 @@ compose --profile agents up -d agents-web
 # --- 5. Wait for it to listen ----------------------------------------------
 url="http://localhost:${port}"
 for i in $(seq 1 20); do
-  if curl -sf -o /dev/null -w '%{http_code}' "$url" 2>/dev/null | grep -qE '^(200|401)$'; then
-    ok "Listening at $url"
-    break
-  fi
+  # Don't use `curl -f` — basic auth returns 401 which counts as success here.
+  http_code=$(curl -s -o /dev/null --max-time 2 -w '%{http_code}' "$url" 2>/dev/null || echo 000)
+  case "$http_code" in
+    200|401)
+      ok "Listening at $url (HTTP $http_code)"
+      break
+      ;;
+  esac
   sleep 1
   if [[ $i -eq 20 ]]; then
-    warn "agents-web did not respond in 20s. Check: docker logs edge-agents-web"
+    warn "agents-web did not respond in 20s (last HTTP code: $http_code)"
+    warn "Inspect logs:  docker logs --tail 50 edge-agents-web"
   fi
 done
 

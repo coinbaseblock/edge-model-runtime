@@ -108,8 +108,9 @@ compose up -d --force-recreate open-webui
 
 # --- 5. Wait for health -----------------------------------------------------
 section "⏳ Waiting for LiteLLM"
-litellm_url="http://localhost:$(env_get LITELLM_PORT || echo 4000)"
-litellm_url="${litellm_url%/}"
+litellm_port="$(env_get LITELLM_PORT)"
+litellm_port="${litellm_port:-4000}"
+litellm_url="http://localhost:${litellm_port}"
 for i in $(seq 1 30); do
   if curl -sf "$litellm_url/health/liveliness" >/dev/null 2>&1; then
     ok "LiteLLM up at $litellm_url"
@@ -133,7 +134,9 @@ fi
 # --- 7. Done ----------------------------------------------------------------
 log ""
 section "✅ Done"
-webui_url="http://localhost:$(env_get WEBUI_PORT || echo 3000)"
+webui_port="$(env_get WEBUI_PORT)"
+webui_port="${webui_port:-3000}"
+webui_url="http://localhost:${webui_port}"
 cat <<EOF
 Open WebUI:  $webui_url
 LiteLLM:     $litellm_url   (master key saved in .env)
