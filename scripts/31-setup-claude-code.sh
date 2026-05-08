@@ -8,8 +8,9 @@
 #
 # What this does:
 #   1. Verifies edge-ollama is running and a coding model is installed.
-#   2. Installs the Claude Code CLI (npm) if missing.
-#   3. Registers two MCP servers on the user's Claude Code config:
+#   2. Installs Node.js 20 if missing (nvm for non-root, NodeSource for root).
+#   3. Installs the Claude Code CLI (npm) if missing.
+#   4. Registers two MCP servers on the user's Claude Code config:
 #        - github       (official MCP server, requires GITHUB_TOKEN)
 #        - ollama       (local stdio server in this repo)
 #
@@ -20,6 +21,11 @@
 #   GITHUB_TOKEN          fine-grained PAT with repo scope. If unset, the
 #                         GitHub MCP server is skipped — you can re-run later.
 #   OLLAMA_DEFAULT_MODEL  override the default Ollama model (default qwen2.5-coder:7b)
+#   EDGE_NODE_INSTALL     how to install Node.js when missing:
+#                           auto       — nvm if non-root, NodeSource if root (default)
+#                           nvm        — user-local, no sudo
+#                           nodesource — system-wide via apt, needs sudo
+#                           skip       — fail with manual instructions
 # =============================================================================
 
 # shellcheck source=lib/common.sh
@@ -28,6 +34,11 @@ source "$(dirname "$0")/lib/common.sh"
 DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b}"
 EMBED_MODEL="${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
 MCP_SERVER="$REPO_ROOT/scripts/lib/ollama-mcp-server.py"
+NODE_INSTALL_MODE="${EDGE_NODE_INSTALL:-auto}"
+NVM_VERSION="v0.40.1"
+NODE_LTS_MAJOR="20"
+# Set by ensure_node when global npm installs need elevation.
+NPM_SUDO=""
 
 section "🤝 Claude Code + Ollama-as-worker (Option B)"
 
@@ -42,15 +53,75 @@ else
   bash "$REPO_ROOT/scripts/04-pull-model.sh" "$DEFAULT_MODEL"
 fi
 
-# --- 2. Claude Code CLI -----------------------------------------------------
+# --- 2. Node.js + Claude Code CLI -------------------------------------------
+install_node_via_nvm() {
+  info "Installing Node.js ${NODE_LTS_MAJOR} via nvm (user-local, no sudo)…"
+  require_cmd curl
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
+  fi
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
+  nvm install "$NODE_LTS_MAJOR" >/dev/null
+  nvm use "$NODE_LTS_MAJOR" >/dev/null
+  ok "Node.js $(node --version), npm $(npm --version) (via nvm)"
+  warn "nvm shimmed Node into this shell. New shells need ~/.bashrc to source nvm.sh"
+  warn "(the nvm installer added that for you). To use 'claude' immediately in"
+  warn "another terminal, run:  source \"\$NVM_DIR/nvm.sh\""
+}
+
+install_node_via_nodesource() {
+  info "Installing Node.js ${NODE_LTS_MAJOR} via NodeSource apt (system-wide)…"
+  require_cmd curl
+  local setup_url="https://deb.nodesource.com/setup_${NODE_LTS_MAJOR}.x"
+  if [[ $EUID -eq 0 ]]; then
+    curl -fsSL "$setup_url" | bash -
+    apt-get install -y nodejs
+    NPM_SUDO=""
+  else
+    require_cmd sudo
+    curl -fsSL "$setup_url" | sudo -E bash -
+    sudo apt-get install -y nodejs
+    # System-wide prefix needs root for `npm install -g`.
+    NPM_SUDO="sudo"
+  fi
+  ok "Node.js $(node --version), npm $(npm --version) (via NodeSource)"
+}
+
+ensure_node() {
+  if command -v npm >/dev/null 2>&1; then
+    ok "npm already available: $(npm --version)"
+    return 0
+  fi
+
+  local mode="$NODE_INSTALL_MODE"
+  if [[ "$mode" == "auto" ]]; then
+    if [[ $EUID -eq 0 ]]; then
+      mode="nodesource"
+    else
+      mode="nvm"
+    fi
+  fi
+
+  case "$mode" in
+    nvm)        install_node_via_nvm ;;
+    nodesource) install_node_via_nodesource ;;
+    skip)       die "npm not found and EDGE_NODE_INSTALL=skip. Install Node.js 18+: https://nodejs.org/" ;;
+    *)          die "Unknown EDGE_NODE_INSTALL='$mode' (expected: auto, nvm, nodesource, skip)" ;;
+  esac
+}
+
 if command -v claude >/dev/null 2>&1; then
   ok "Claude Code already installed: $(claude --version 2>/dev/null || echo 'unknown')"
 else
+  ensure_node
   info "Installing Claude Code CLI via npm…"
-  if ! command -v npm >/dev/null 2>&1; then
-    die "npm not found. Install Node.js 18+ first: https://nodejs.org/"
+  if [[ -n "$NPM_SUDO" ]]; then
+    $NPM_SUDO npm install -g @anthropic-ai/claude-code
+  else
+    npm install -g @anthropic-ai/claude-code
   fi
-  npm install -g @anthropic-ai/claude-code
 fi
 
 # --- 3. Verify MCP server -----------------------------------------------------
