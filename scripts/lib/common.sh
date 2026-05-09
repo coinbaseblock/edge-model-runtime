@@ -106,3 +106,30 @@ ensure_ollama_running() {
     die "Container 'edge-ollama' is not running. Start with: bash scripts/01-start.sh"
   fi
 }
+
+# Wait for the Ollama HTTP API to respond. Reads OLLAMA_PORT from .env.
+wait_ollama_api() {
+  local timeout="${1:-30}"
+  local url="http://localhost:${OLLAMA_PORT:-11434}/api/tags"
+  local i
+  for ((i=0; i<timeout; i++)); do
+    curl -sf "$url" >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
+}
+
+# Start edge-ollama if it isn't running, then wait for the API to be ready.
+# Caller is expected to have run check_docker, check_compose_v2, load_env,
+# and check_data_root already.
+ensure_ollama_started() {
+  if ollama_running; then
+    return 0
+  fi
+  info "Container 'edge-ollama' is not running — starting it…"
+  compose up -d ollama
+  if ! wait_ollama_api 30; then
+    die "Ollama API did not become ready within 30s. Try: bash scripts/03-verify.sh"
+  fi
+  ok "edge-ollama is up"
+}

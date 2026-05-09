@@ -24,13 +24,19 @@ EOF
 fi
 
 check_docker
-ensure_ollama_running
+check_compose_v2
 load_env
+check_data_root || die "Run scripts/00-install.sh first"
+ensure_ollama_started
 
 section "📥 Pulling: $MODEL"
 info "Storage: ${AI_DATA_ROOT}/ollama"
 
-docker exec -it edge-ollama ollama pull "$MODEL"
+# Use -t only when stdout is a TTY so the script also works under
+# `sudo`, CI, and other non-interactive shells.
+exec_flags=(-i)
+[[ -t 1 ]] && exec_flags+=(-t)
+docker exec "${exec_flags[@]}" edge-ollama ollama pull "$MODEL"
 
 ok "Pulled: $MODEL"
 log ""
