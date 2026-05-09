@@ -481,6 +481,210 @@ See [`.claude/README.md`](./.claude/README.md).
 
 ---
 
+## 🤖 Local AI Coding Agent (Codex / Claude Code style)
+
+Run a fully local AI coding agent — no subscription, no outbound model API calls,
+no data leaving the machine. The agent edits real files, runs `git commit`, and
+can push to GitHub, exactly like Codex or Claude Code.
+
+> **⚠️ Back up `.env` before experimenting** — it contains `ANTHROPIC_API_KEY`
+> and `LITELLM_MASTER_KEY`. Run `bash scripts/19-backup-secrets.sh` or
+> `emr backup` to save a timestamped copy to `${AI_DATA_ROOT}/backups/env/`.
+
+### Prerequisites
+
+- Docker + NVIDIA Container Toolkit installed (`bash scripts/00-install.sh` sets this up)
+- `~/.gitconfig` with `user.name` and `user.email` (required for git commits)
+- SSH key in `~/.ssh/id_ed25519` added to GitHub (for `git push`)
+- Stack running and at least one coding model pulled (steps below)
+
+### 1 — Start the stack
+
+```bash
+make up
+# or: bash scripts/01-start.sh
+# or: emr start
+```
+
+Verify everything is healthy:
+
+```bash
+make status
+# or: bash scripts/03-verify.sh
+```
+
+### 2 — Pull a local coding model
+
+```bash
+bash scripts/04-pull-model.sh qwen2.5-coder:7b
+# or: emr pull qwen2.5-coder:7b
+```
+
+The model is stored on the host at `${AI_DATA_ROOT}/ollama` and survives
+container rebuilds. Check what is installed:
+
+```bash
+bash scripts/05-list-models.sh
+# or: emr models
+```
+
+Recommended models by VRAM — see [docs/MODEL-RECOMMENDATIONS.md](./docs/MODEL-RECOMMENDATIONS.md).
+
+### 3 — Interactive AI coding session (aider)
+
+`emr aider` launches [aider](https://aider.chat) inside a Docker container,
+pointed at the local Ollama model. Files in your **current directory** are
+mounted read-write; git identity comes from `~/.gitconfig`.
+
+```bash
+cd ~/my-project          # any git repo
+emr aider                # local Ollama mode (default, no outbound AI calls)
+```
+
+Inside the session:
+```
+> add type hints to all functions in utils.py
+> write a pytest for the new function and commit it
+> /quit
+```
+
+> **Local mode never calls Anthropic or any external AI API.** All inference
+> runs on the Ollama container on this machine.
+
+Switch to a different local model:
+
+```bash
+emr aider --model qwen2.5-coder:14b
+```
+
+### 4 — One-shot agent edits and auto-commits (`--message`)
+
+Skip the interactive session and give the agent a single task:
+
+```bash
+cd ~/my-project
+emr aider -- --message "Add a --dry-run flag to the CLI" --yes-always
+emr aider -- --message "Write docstrings for every public function" --yes-always
+emr aider -- --message "Refactor auth.py to use dataclasses" --yes-always
+```
+
+`--yes-always` skips confirmation prompts; the agent edits files and commits
+automatically. Each run streams the model's reasoning and shows the diff before
+committing.
+
+**Demo task** (this is exactly what was run to wire `emr aider` into this repo):
+
+```bash
+cd /home/expert/edge-model-runtime
+emr aider -- \
+  --message "Add emr aider, systemd-install, systemd-uninstall, backup subcommands to bin/emr" \
+  --yes-always
+```
+
+Output:
+```
+Model: openai/qwen2.5-coder:7b with whole edit format
+Git repo: .git with 67 files
+Applied edit to bin/emr
+Commit 1ea9c41 feat(bin/emr): add aider, systemd-install, systemd-uninstall, and backup subcommands
+```
+
+### 5 — Cloud mode (LiteLLM → Anthropic)
+
+When you need stronger reasoning, switch to cloud without changing anything else:
+
+```bash
+emr aider --cloud                           # interactive, claude-sonnet-4-6
+emr aider --cloud -- --message "..." --yes-always   # one-shot
+```
+
+This routes through the local LiteLLM proxy (`edge-litellm:4000`) to Anthropic.
+Requires `ANTHROPIC_API_KEY` and `LITELLM_MASTER_KEY` in `.env`.
+Check LiteLLM is healthy: `curl -s http://localhost:4000/health/liveliness`
+
+### 6 — OpenCode TUI (Codex-style, 100% local)
+
+[OpenCode](https://github.com/opencode-dev/opencode) is a terminal UI similar
+to Codex. It reads your repo, proposes edits, and runs `git` commands:
+
+```bash
+make codex
+# or: emr setup opencode   (first-time setup, then: opencode)
+```
+
+Pointed at Ollama by default; select a model from the in-TUI dropdown.
+
+### 7 — Claude Code TUI on local Ollama (Option D)
+
+Run the official `claude` CLI but route it through LiteLLM → Ollama so no
+Anthropic subscription is used:
+
+```bash
+make claude-local
+# or: emr setup claude-local qwen2.5-coder:7b
+```
+
+### 8 — OpenHands web IDE
+
+Browser-based agentic IDE — select a repo, type a task, and the agent clones,
+edits, runs tests, commits, and pushes:
+
+- **URL:** http://192.168.1.6:3030
+- **Login:** no login screen (open access on LAN)
+- `AGENTS_WEB_USER` / `AGENTS_WEB_PASS` in `.env` are legacy keys from a
+  removed service — OpenHands itself has no authentication by default
+- Set **LLM model** to `qwen2.5-coder` (local) or `claude-sonnet-4-6` (cloud)
+  in OpenHands Settings → LLM
+- **API key:** use `LITELLM_MASTER_KEY` from `.env`
+- **Base URL:** `http://192.168.1.6:4000`
+
+Start OpenHands:
+
+```bash
+emr setup coding-web
+# or: docker compose --profile coding-web up -d openhands
+```
+
+### 9 — Validate your changes
+
+After the agent edits and commits, always run:
+
+```bash
+make quick-check      # shellcheck + compose render + invariants
+```
+
+Check what changed:
+
+```bash
+git status
+git log --oneline -5
+git diff HEAD~1       # show last commit's diff
+```
+
+Push to remote:
+
+```bash
+git push origin main
+```
+
+### Quick-reference table
+
+| Goal | Command |
+|---|---|
+| Interactive coding session (local) | `cd ~/repo && emr aider` |
+| One-shot task + auto-commit (local) | `emr aider -- --message "..." --yes-always` |
+| Interactive session (cloud) | `emr aider --cloud` |
+| OpenCode TUI (Codex-like) | `make codex` |
+| Claude Code TUI (local Ollama) | `make claude-local` |
+| Claude Code TUI (cloud Anthropic) | `make claude-cloud` |
+| OpenHands web IDE | `http://192.168.1.6:3030` |
+| Pull a model | `emr pull qwen2.5-coder:7b` |
+| List installed models | `emr models` |
+| Validate changes | `make quick-check` |
+| Backup `.env` secrets | `emr backup` |
+
+---
+
 ## 🐛 Troubleshooting
 
 See [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md).
