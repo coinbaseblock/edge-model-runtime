@@ -202,6 +202,71 @@ services:
       - edge-ai-net
 
   # ---------------------------------------------------------------------------
+  # OPTIONAL: OpenHands — agentic web IDE (Option E in docs/AI-CODING-SETUP.md)
+  #
+  # Browser UI ที่ทำงานแบบ Codex / Claude Code Web: เลือก repo, สั่ง agent
+  # clone/แก้/run test/commit/push. ใช้ models ผ่าน LiteLLM proxy ที่มีอยู่
+  # (Claude, Qwen, Nemotron) — เลือกใน Settings ของ OpenHands เอง.
+  #
+  # Spawns sandbox containers via the host docker socket — that's why
+  # `/var/run/docker.sock` is bind-mounted. Sandbox runtime image is pulled
+  # on demand by OpenHands itself, controlled by AGENT_SERVER_IMAGE_TAG.
+  #
+  # Enable: bash scripts/36-setup-coding-web.sh    (one-time wizard)
+  # Or:     docker compose --profile coding-web up -d openhands
+  # ---------------------------------------------------------------------------
+  openhands:
+    image: ${OPENHANDS_IMAGE}
+    container_name: edge-openhands
+    profiles: ["coding-web"]
+    restart: unless-stopped
+
+    ports:
+      - "${OPENHANDS_PORT:-3030}:3000"
+
+    environment:
+      # Sandbox/runtime image OpenHands spawns per session via Docker socket.
+      AGENT_SERVER_IMAGE_REPOSITORY: ${OPENHANDS_AGENT_IMAGE_REPO:-ghcr.io/openhands/agent-server}
+      AGENT_SERVER_IMAGE_TAG: ${OPENHANDS_AGENT_IMAGE_TAG}
+      LOG_ALL_EVENTS: "true"
+      # Default LLM endpoint = LiteLLM proxy on the shared compose network.
+      # Users can still change this in the OpenHands settings UI; this just
+      # pre-fills the form so first-run works without manual config.
+      LLM_BASE_URL: ${OPENHANDS_LLM_BASE_URL:-http://litellm:4000}
+      LLM_API_KEY: ${LITELLM_MASTER_KEY:-}
+      # GitHub OAuth (optional). Without these set, the OpenHands UI lets you
+      # paste a fine-grained PAT in Settings as a fallback. To enable OAuth:
+      #   https://github.com/settings/developers → New OAuth App
+      #   Authorization callback URL:
+      #     http://<host>:${OPENHANDS_PORT:-3030}/api/integrations/github/callback
+      GITHUB_APP_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
+      GITHUB_APP_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
+
+    volumes:
+      # Docker socket: required so OpenHands can launch sandbox containers.
+      # This effectively gives OpenHands root on the host — only enable on
+      # trusted hardware. Same trust model as any docker-in-docker tool.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # State: chats, settings, OAuth tokens. Lives on host so it survives
+      # `docker compose down` — same pattern as ollama/open-webui.
+      - ${AI_DATA_ROOT}/openhands:/.openhands
+
+    extra_hosts:
+      # Lets OpenHands reach services bound to the host (not strictly needed
+      # when LLM_BASE_URL points at the in-network litellm service, but kept
+      # so users who flip LLM_BASE_URL to a host port still work).
+      - "host.docker.internal:host-gateway"
+
+    networks:
+      - edge-ai-net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
+
+  # ---------------------------------------------------------------------------
   # OPTIONAL: Training (PyTorch interactive shell)
   # Enable: docker compose --profile training run --rm training bash
   # ---------------------------------------------------------------------------

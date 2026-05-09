@@ -25,6 +25,13 @@ if [[ -n "${LITELLM_IMAGE:-}" ]] && docker image inspect "$LITELLM_IMAGE" >/dev/
   update_litellm=1
   log "  LITELLM_IMAGE    = ${LITELLM_IMAGE}"
 fi
+
+# OpenHands is opt-in — same convention as LiteLLM.
+update_openhands=0
+if [[ -n "${OPENHANDS_IMAGE:-}" ]] && docker image inspect "$OPENHANDS_IMAGE" >/dev/null 2>&1; then
+  update_openhands=1
+  log "  OPENHANDS_IMAGE  = ${OPENHANDS_IMAGE}"
+fi
 log ""
 
 if ! confirm "Pull these images and recreate containers?"; then
@@ -38,6 +45,11 @@ compose up -d ollama open-webui
 if (( update_litellm )); then
   compose --profile cloud pull litellm
   compose --profile cloud up -d litellm
+fi
+
+if (( update_openhands )); then
+  compose --profile coding-web pull openhands
+  compose --profile coding-web up -d openhands
 fi
 
 ok "Update complete."
