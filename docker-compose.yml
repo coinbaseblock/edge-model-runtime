@@ -261,6 +261,20 @@ services:
       #     http://<host>:${OPENHANDS_PORT:-3030}/api/integrations/github/callback
       GITHUB_APP_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
       GITHUB_APP_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
+      # Sandbox/agent-server configuration.
+      # SANDBOX_HOST_PORT: port on which THIS container is reachable from the
+      #   agent-server containers (via host.docker.internal). Must match
+      #   OPENHANDS_PORT so webhook callbacks reach OpenHands, not Open WebUI.
+      SANDBOX_HOST_PORT: "${OPENHANDS_PORT:-3030}"
+      # OH_PERMITTED_CORS_ORIGINS: passed as OH_ALLOW_CORS_ORIGINS_0 to every
+      #   spawned agent-server so the browser's cross-origin preflight is
+      #   accepted. Must match the URL the browser uses to reach OpenHands.
+      # Value must be a JSON array string (the OH_ env parser calls json.loads).
+      OH_PERMITTED_CORS_ORIGINS: '["${OPENHANDS_HOST_URL:-http://localhost:3030}"]'
+      # SANDBOX_CONTAINER_URL_PATTERN: URL template the frontend uses to reach
+      #   agent-server exposed ports (VNC, VS Code, etc.). Replace {port} with
+      #   the host-mapped port. Default localhost:{port} breaks on remote access.
+      SANDBOX_CONTAINER_URL_PATTERN: "http://192.168.1.6:{port}"
 
     volumes:
       # Docker socket: required so OpenHands can launch sandbox containers.
