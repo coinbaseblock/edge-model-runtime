@@ -38,6 +38,8 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
 
 ENV_FILE="$REPO_ROOT/.env"
 LITELLM_CONFIG="$REPO_ROOT/litellm/config.yaml"
@@ -103,11 +105,8 @@ fi
 if ! curl -sf "$LITELLM_URL/health/liveliness" >/dev/null 2>&1; then
   info "LiteLLM not reachable at $LITELLM_URL — starting it."
   compose --profile cloud up -d litellm
-  for i in $(seq 1 30); do
-    curl -sf "$LITELLM_URL/health/liveliness" >/dev/null 2>&1 && break
-    sleep 1
-    [[ $i -eq 30 ]] && die "LiteLLM did not come up. Check: docker logs edge-litellm"
-  done
+  wait_url "$LITELLM_URL/health/liveliness" 30 \
+    || die "LiteLLM did not come up. Check: docker logs edge-litellm"
 fi
 ok "LiteLLM healthy at $LITELLM_URL"
 
@@ -118,11 +117,8 @@ if ! curl -sf -H "Authorization: Bearer $LITELLM_MASTER_KEY" "$LITELLM_URL/v1/mo
    | grep -q "\"id\":[[:space:]]*\"$MODEL\""; then
   info "Recreating LiteLLM so it picks up '$MODEL' from config.yaml…"
   compose --profile cloud up -d --force-recreate litellm
-  for i in $(seq 1 30); do
-    curl -sf "$LITELLM_URL/health/liveliness" >/dev/null 2>&1 && break
-    sleep 1
-    [[ $i -eq 30 ]] && die "LiteLLM did not come back up."
-  done
+  wait_url "$LITELLM_URL/health/liveliness" 30 \
+    || die "LiteLLM did not come back up."
 fi
 
 # Final smoke check: the model id is now exposed.
@@ -141,26 +137,6 @@ else
   wrapper_name="claude-local-${MODEL}"
 fi
 
-# Pick install dir: /usr/local/bin if writable (or with sudo); fall back to
-# ~/.local/bin so non-root users without sudo still get a working install.
-install_dir=""
-sudo_cmd=""
-if [[ -w /usr/local/bin ]]; then
-  install_dir="/usr/local/bin"
-elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  install_dir="/usr/local/bin"
-  sudo_cmd="sudo"
-elif command -v sudo >/dev/null 2>&1; then
-  install_dir="/usr/local/bin"
-  sudo_cmd="sudo"
-  info "Will install $wrapper_name to /usr/local/bin via sudo."
-else
-  install_dir="$HOME/.local/bin"
-  mkdir -p "$install_dir"
-fi
-
-target="$install_dir/$wrapper_name"
-
 tmp="$(mktemp)"
 cat >"$tmp" <<EOF
 #!/usr/bin/env bash
@@ -175,19 +151,12 @@ exec claude "\$@"
 EOF
 chmod u+rwX,g+rwX,o-rwx "$tmp"
 
-if [[ -n "$sudo_cmd" ]]; then
-  $sudo_cmd install -m 0755 "$tmp" "$target"
-else
-  install -m 0755 "$tmp" "$target"
-fi
+target="$(install_wrapper "$wrapper_name" "$tmp")"
 rm -f "$tmp"
+manifest_add_path "$target"
 
 ok "Installed wrapper: $target"
-
-if [[ "$install_dir" == "$HOME/.local/bin" ]] && ! echo ":$PATH:" | grep -q ":$HOME/.local/bin:"; then
-  warn "$HOME/.local/bin is not on PATH in this shell."
-  warn "Run:  export PATH=\"\$HOME/.local/bin:\$PATH\""
-fi
+warn_if_not_on_path "$(dirname "$target")"
 
 # --- 5. Done ----------------------------------------------------------------
 log ""

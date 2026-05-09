@@ -1,17 +1,22 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup lint test format verify quick-check hooks-install \
+.PHONY: help install uninstall cleanup wipe status \
+        setup lint test format verify quick-check hooks-install \
         ai-review ai-fix ai-pr \
         up down webui codex claude-local claude-cloud claude-lmstudio \
         cloud-models lmstudio apply-patch
 
 help:
-	@echo "Stack:"
+	@echo "Stack lifecycle (the unified entry point is bin/emr):"
+	@echo "  make install       - first-time setup (creates .env, pulls core images, links emr)"
 	@echo "  make up            - start core services (Ollama + Open WebUI)"
 	@echo "  make down          - stop core services"
+	@echo "  make status        - run runtime verification"
 	@echo "  make webui         - open Open WebUI in your browser (http://localhost:3000)"
-	@echo "  make verify        - run runtime verification"
+	@echo "  make cleanup       - remove containers + images + host wrappers (keeps models)"
+	@echo "  make wipe          - DELETE EVERYTHING incl. models (typed confirmation)"
+	@echo "  make uninstall     - interactive uninstall menu"
 	@echo ""
 	@echo "AI coding entry points (pick one):"
 	@echo "  make codex          - launch OpenCode TUI (Option A, 100% local, edits files & runs gh)"
@@ -33,6 +38,7 @@ help:
 	@echo "  make ai-review     - quick-check + git status"
 	@echo "  make ai-fix        - format + quick-check"
 	@echo "  make ai-pr         - generate PR notes stub"
+	@echo "  make verify        - alias for 'make status'"
 
 setup:
 	bash scripts/00-install.sh
@@ -45,7 +51,7 @@ test:
 	cp .env.example .env.ci
 	sed -i 's|^WEBUI_SECRET_KEY=$$|WEBUI_SECRET_KEY=local-test-key|' .env.ci
 	docker compose --env-file .env.ci --env-file .env.versions config > /dev/null
-	@if rg -n '^[[:space:]]*[^#]*chmod[[:space:]]+(-[A-Za-z]+[[:space:]]+)?777' scripts/; then \
+	@if rg -n '^[[:space:]]*[^#]*chmod[[:space:]]+(-[A-Za-z]+[[:space:]]+)?777' scripts/ bin/; then \
 		echo "FAIL: chmod 777 found"; exit 1; \
 	fi
 	@if rg -n '^[A-Z_]+_IMAGE=.*:(latest|main)$$' .env.versions; then \
@@ -55,10 +61,22 @@ test:
 	@rm -f .env.ci
 
 format:
-	chmod +x scripts/*.sh
+	chmod +x scripts/*.sh bin/emr
 
-verify:
+verify status:
 	bash scripts/03-verify.sh
+
+install:
+	bash scripts/00-install.sh
+
+uninstall:
+	bash scripts/uninstall.sh
+
+cleanup:
+	bash scripts/10-cleanup-docker.sh --include-host-tools
+
+wipe:
+	bash scripts/20-wipe-models.sh
 
 quick-check: lint test
 

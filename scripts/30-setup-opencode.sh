@@ -15,6 +15,9 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
+load_env  # so manifest knows about $AI_DATA_ROOT
 
 MODEL="${1:-qwen2.5-coder:7b}"
 
@@ -44,6 +47,10 @@ else
   if ! command -v opencode >/dev/null 2>&1; then
     warn "OpenCode installed but not on PATH yet."
     warn "Open a new shell, or add ~/.opencode/bin to PATH."
+  fi
+  # Track the install dir so cleanup knows about it.
+  if [[ -d "$HOME/.opencode" ]]; then
+    manifest_add_path "$HOME/.opencode"
   fi
 fi
 

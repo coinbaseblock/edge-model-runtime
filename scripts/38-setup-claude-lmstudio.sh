@@ -43,23 +43,17 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
 
 ENV_FILE="$REPO_ROOT/.env"
 
 section "🤖 Claude Code TUI + LM Studio (Option F-direct)"
 
 [[ -f "$ENV_FILE" ]] || die ".env not found. Run: bash scripts/00-install.sh"
+load_env  # so manifest knows about $AI_DATA_ROOT
 
-# --- helper: read .env without shelling out to load_env ---------------------
-env_get() {
-  local key="$1" val
-  val=$(awk -F= -v k="$key" '
-    /^[[:space:]]*#/ { next }
-    $1 == k { sub(/^[^=]*=/, ""); print; exit }
-  ' "$ENV_FILE")
-  [[ -n "$val" ]] || return 1
-  printf '%s' "$val"
-}
+# env_get / env_set / install_wrapper live in lib/common.sh.
 
 # --- 1. LM Studio reachable? ------------------------------------------------
 # From the host (where the wrapper will run), LM Studio always lives at
@@ -154,24 +148,6 @@ ok "claude CLI installed: $(claude --version 2>/dev/null || echo 'unknown')"
 # --- 5. Write the wrapper ---------------------------------------------------
 wrapper_name="claude-lmstudio"
 
-install_dir=""
-sudo_cmd=""
-if [[ -w /usr/local/bin ]]; then
-  install_dir="/usr/local/bin"
-elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  install_dir="/usr/local/bin"
-  sudo_cmd="sudo"
-elif command -v sudo >/dev/null 2>&1; then
-  install_dir="/usr/local/bin"
-  sudo_cmd="sudo"
-  info "Will install $wrapper_name to /usr/local/bin via sudo."
-else
-  install_dir="$HOME/.local/bin"
-  mkdir -p "$install_dir"
-fi
-
-target="$install_dir/$wrapper_name"
-
 # LM Studio doesn't require an auth token, but Claude Code refuses to start
 # without one. Send the literal placeholder LM Studio's docs use; LM Studio
 # ignores it.
@@ -191,19 +167,12 @@ exec claude "\$@"
 EOF
 chmod u+rwX,g+rwX,o-rwx "$tmp"
 
-if [[ -n "$sudo_cmd" ]]; then
-  $sudo_cmd install -m 0755 "$tmp" "$target"
-else
-  install -m 0755 "$tmp" "$target"
-fi
+target="$(install_wrapper "$wrapper_name" "$tmp")"
 rm -f "$tmp"
+manifest_add_path "$target"
 
 ok "Installed wrapper: $target"
-
-if [[ "$install_dir" == "$HOME/.local/bin" ]] && ! echo ":$PATH:" | grep -q ":$HOME/.local/bin:"; then
-  warn "$HOME/.local/bin is not on PATH in this shell."
-  warn "Run:  export PATH=\"\$HOME/.local/bin:\$PATH\""
-fi
+warn_if_not_on_path "$(dirname "$target")"
 
 # --- 6. Done ----------------------------------------------------------------
 log ""

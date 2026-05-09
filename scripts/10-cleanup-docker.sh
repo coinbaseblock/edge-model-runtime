@@ -8,6 +8,26 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
+
+# Flags:
+#   --include-host-tools   also drain manifest (claude-local wrappers, MCP regs, …)
+INCLUDE_HOST_TOOLS=0
+for arg in "$@"; do
+  case "$arg" in
+    --include-host-tools) INCLUDE_HOST_TOOLS=1 ;;
+    -h|--help)
+      cat <<EOF
+Usage: bash scripts/10-cleanup-docker.sh [--include-host-tools]
+
+Removes containers + images for this stack. Preserves models on the host.
+Pass --include-host-tools to also remove tracked host wrappers, MCP regs,
+and npm globals (a.k.a. cleanup --full from the emr CLI).
+EOF
+      exit 0 ;;
+  esac
+done
 
 section "🧹 LEVEL 2 cleanup — containers + images"
 load_env
@@ -25,6 +45,13 @@ This will PRESERVE:
   • $AI_DATA_ROOT/hf-cache     (HuggingFace cache)
   • $AI_DATA_ROOT/training     (training outputs)
 EOF
+if (( INCLUDE_HOST_TOOLS )); then
+  cat <<EOF
+
+ALSO removing host-side artifacts tracked in the manifest:
+$(manifest_dump 2>/dev/null | sed 's/^/  • /' || echo '  (manifest empty)')
+EOF
+fi
 log ""
 if ! confirm "Continue?"; then
   log "Cancelled."
@@ -48,6 +75,13 @@ for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE OPENHANDS_IMAGE VLLM_IMAG
     fi
   fi
 done
+
+# --- Optionally drain manifest (host wrappers, MCP regs, npm globals) ------
+if (( INCLUDE_HOST_TOOLS )); then
+  section "Removing host-side artifacts"
+  manifest_drain
+  manifest_clear
+fi
 
 # --- Prune dangling --------------------------------------------------------
 section "Pruning"
