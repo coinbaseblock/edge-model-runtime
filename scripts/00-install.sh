@@ -12,6 +12,16 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
+
+# --no-cli-symlink — skip the optional /usr/local/bin/emr install step.
+INSTALL_EMR_SYMLINK=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-cli-symlink) INSTALL_EMR_SYMLINK=0 ;;
+  esac
+done
 
 section "🚀 edge-model-runtime — install"
 
@@ -118,7 +128,50 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-# --- 10. Done ----------------------------------------------------------------
+# --- 10. Optional: install the `emr` CLI dispatcher --------------------------
+# Symlink bin/emr into /usr/local/bin so users can type `emr <cmd>` from any
+# directory (Claude Code / Codex feel). Falls back to ~/.local/bin if neither
+# /usr/local/bin nor sudo are available. Tracked in the manifest so a Tier 3
+# uninstall removes it.
+install_emr_symlink() {
+  local src="$REPO_ROOT/bin/emr" target dir sudo_cmd=""
+  [[ -x "$src" ]] || { warn "bin/emr is not executable in this checkout — skipping symlink"; return; }
+
+  if [[ -w /usr/local/bin ]]; then
+    dir="/usr/local/bin"
+  elif command -v sudo >/dev/null 2>&1; then
+    dir="/usr/local/bin"
+    sudo_cmd="sudo"
+  else
+    dir="$HOME/.local/bin"
+    mkdir -p "$dir"
+  fi
+  target="$dir/emr"
+
+  if [[ -L "$target" && "$(readlink -f "$target")" == "$(readlink -f "$src")" ]]; then
+    ok "emr already linked: $target"
+  else
+    if [[ -e "$target" || -L "$target" ]]; then
+      info "Replacing existing $target"
+      if [[ -n "$sudo_cmd" ]]; then $sudo_cmd rm -f "$target"; else rm -f "$target"; fi
+    fi
+    if [[ -n "$sudo_cmd" ]]; then
+      $sudo_cmd ln -s "$src" "$target"
+    else
+      ln -s "$src" "$target"
+    fi
+    ok "emr installed: $target  →  $src"
+  fi
+  manifest_add_path "$target"
+  warn_if_not_on_path "$dir"
+}
+
+if (( INSTALL_EMR_SYMLINK )); then
+  section "🔗 Installing emr CLI"
+  install_emr_symlink
+fi
+
+# --- 11. Done ----------------------------------------------------------------
 section "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 ok "Installation complete"
 section "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -129,8 +182,9 @@ cat <<EOF
 🔌 Ollama API:  http://localhost:${OLLAMA_PORT:-11434}
 
 Next steps:
-  bash scripts/04-pull-model.sh qwen2.5-coder:7b
-  bash scripts/05-list-models.sh
-  bash scripts/03-verify.sh
+  emr pull qwen2.5-coder:7b      (or: bash scripts/04-pull-model.sh ...)
+  emr models                     (or: bash scripts/05-list-models.sh)
+  emr status                     (or: bash scripts/03-verify.sh)
+  emr help                       (full subcommand list)
 
 EOF

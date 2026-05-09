@@ -10,7 +10,16 @@ This folder configures Claude Code for the edge-model-runtime repo.
 | `/pull <model>` | Pull an Ollama model |
 | `/nemotron [variant]` | Pull a Nemotron variant (default: `nano`) |
 | `/verify` | Health check |
+| `/status` | Alias for `/verify` |
+| `/disk` | Disk usage breakdown |
 | `/cleanup` | Level-2 cleanup (containers + images, keep models) |
+| `/uninstall` | Interactive 4-tier uninstall menu |
+
+## Unified CLI
+
+The repo also ships a `bin/emr` dispatcher (Claude-Code / Codex-style UX). After
+`scripts/00-install.sh` installs the symlink, `emr <subcommand>` works from
+any directory. Run `emr help` for the full list.
 
 ## Permissions
 

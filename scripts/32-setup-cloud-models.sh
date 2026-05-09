@@ -32,43 +32,7 @@ check_compose_v2
 
 [[ -f "$ENV_FILE" ]] || die ".env not found. Run: bash scripts/00-install.sh"
 
-# --- helpers ---------------------------------------------------------------
-# Get a value from .env. Exits non-zero when the key is unset or blank, so
-# callers can use `$(env_get FOO || echo default)` reliably.
-env_get() {
-  local key="$1" val
-  val=$(awk -F= -v k="$key" '
-    /^[[:space:]]*#/ { next }
-    $1 == k { sub(/^[^=]*=/, ""); print; exit }
-  ' "$ENV_FILE")
-  [[ -n "$val" ]] || return 1
-  printf '%s' "$val"
-}
-
-# Set/replace KEY=VALUE in .env. Adds the line if it does not exist yet.
-env_set() {
-  local key="$1" value="$2"
-  if grep -qE "^[[:space:]]*${key}=" "$ENV_FILE"; then
-    # Use a tmpfile + awk to avoid sed escaping pitfalls in the value.
-    local tmp
-    tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" '
-      BEGIN { done = 0 }
-      {
-        if (!done && $0 ~ "^[[:space:]]*"k"=") {
-          print k"="v
-          done = 1
-        } else {
-          print
-        }
-      }
-    ' "$ENV_FILE" > "$tmp"
-    install -m 0640 "$tmp" "$ENV_FILE"
-    rm -f "$tmp"
-  else
-    printf "%s=%s\n" "$key" "$value" >> "$ENV_FILE"
-  fi
-}
+# env_get / env_set live in lib/common.sh now (used by 32/36/37/38 alike).
 
 # --- 1. Master key ----------------------------------------------------------
 master_key="$(env_get LITELLM_MASTER_KEY)"
@@ -113,16 +77,11 @@ compose up -d --force-recreate open-webui
 section "⏳ Waiting for LiteLLM"
 litellm_url="http://localhost:$(env_get LITELLM_PORT || echo 4000)"
 litellm_url="${litellm_url%/}"
-for i in $(seq 1 30); do
-  if curl -sf "$litellm_url/health/liveliness" >/dev/null 2>&1; then
-    ok "LiteLLM up at $litellm_url"
-    break
-  fi
-  sleep 1
-  if [[ $i -eq 30 ]]; then
-    warn "LiteLLM did not become healthy in 30s. Check: docker logs edge-litellm"
-  fi
-done
+if wait_url "$litellm_url/health/liveliness" 30; then
+  ok "LiteLLM up at $litellm_url"
+else
+  warn "LiteLLM did not become healthy in 30s. Check: docker logs edge-litellm"
+fi
 
 # --- 6. List models exposed by the proxy ------------------------------------
 section "📋 Models registered with LiteLLM"

@@ -50,39 +50,7 @@ check_compose_v2
 
 [[ -f "$ENV_FILE" ]] || die ".env not found. Run: bash scripts/00-install.sh"
 
-# --- helpers (mirrors 32/36 — small enough to duplicate, shellcheck-clean) --
-env_get() {
-  local key="$1" val
-  val=$(awk -F= -v k="$key" '
-    /^[[:space:]]*#/ { next }
-    $1 == k { sub(/^[^=]*=/, ""); print; exit }
-  ' "$ENV_FILE")
-  [[ -n "$val" ]] || return 1
-  printf '%s' "$val"
-}
-
-env_set() {
-  local key="$1" value="$2"
-  if grep -qE "^[[:space:]]*${key}=" "$ENV_FILE"; then
-    local tmp
-    tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" '
-      BEGIN { done = 0 }
-      {
-        if (!done && $0 ~ "^[[:space:]]*"k"=") {
-          print k"="v
-          done = 1
-        } else {
-          print
-        }
-      }
-    ' "$ENV_FILE" > "$tmp"
-    install -m 0640 "$tmp" "$ENV_FILE"
-    rm -f "$tmp"
-  else
-    printf "%s=%s\n" "$key" "$value" >> "$ENV_FILE"
-  fi
-}
+# env_get / env_set live in lib/common.sh.
 
 # --- 1. Resolve LM Studio host:port -----------------------------------------
 # From the host we always check `localhost`. The container side uses
@@ -176,11 +144,8 @@ litellm_port="$(env_get LITELLM_PORT || echo 4000)"
 litellm_url="http://localhost:${litellm_port}"
 
 section "⏳ Waiting for LiteLLM"
-for i in $(seq 1 30); do
-  curl -sf "$litellm_url/health/liveliness" >/dev/null 2>&1 && break
-  sleep 1
-  [[ $i -eq 30 ]] && die "LiteLLM did not become healthy in 30s. Check: docker logs edge-litellm"
-done
+wait_url "$litellm_url/health/liveliness" 30 \
+  || die "LiteLLM did not become healthy in 30s. Check: docker logs edge-litellm"
 ok "LiteLLM healthy at $litellm_url"
 
 # --- 5. Verify LiteLLM advertises 'lmstudio' --------------------------------

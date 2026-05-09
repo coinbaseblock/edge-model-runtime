@@ -34,39 +34,7 @@ check_compose_v2
 
 [[ -f "$ENV_FILE" ]] || die ".env not found. Run: bash scripts/00-install.sh"
 
-# --- helpers (mirrors 32-setup-cloud-models.sh) -----------------------------
-env_get() {
-  local key="$1" val
-  val=$(awk -F= -v k="$key" '
-    /^[[:space:]]*#/ { next }
-    $1 == k { sub(/^[^=]*=/, ""); print; exit }
-  ' "$ENV_FILE")
-  [[ -n "$val" ]] || return 1
-  printf '%s' "$val"
-}
-
-env_set() {
-  local key="$1" value="$2"
-  if grep -qE "^[[:space:]]*${key}=" "$ENV_FILE"; then
-    local tmp
-    tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" '
-      BEGIN { done = 0 }
-      {
-        if (!done && $0 ~ "^[[:space:]]*"k"=") {
-          print k"="v
-          done = 1
-        } else {
-          print
-        }
-      }
-    ' "$ENV_FILE" > "$tmp"
-    install -m 0640 "$tmp" "$ENV_FILE"
-    rm -f "$tmp"
-  else
-    printf "%s=%s\n" "$key" "$value" >> "$ENV_FILE"
-  fi
-}
+# env_get / env_set live in lib/common.sh.
 
 # --- 1. LiteLLM master key (must exist; OpenHands authenticates with it) ----
 master_key="$(env_get LITELLM_MASTER_KEY || true)"
@@ -82,14 +50,12 @@ ok "LITELLM_MASTER_KEY found in .env"
 if ! docker ps --format '{{.Names}}' | grep -qx 'edge-litellm'; then
   section "🚀 Starting LiteLLM proxy (required by OpenHands)"
   compose --profile cloud up -d litellm
-  for i in $(seq 1 30); do
-    if curl -sf "http://localhost:$(env_get LITELLM_PORT || echo 4000)/health/liveliness" >/dev/null 2>&1; then
-      ok "LiteLLM is healthy"
-      break
-    fi
-    sleep 1
-    [[ $i -eq 30 ]] && warn "LiteLLM did not become healthy in 30s — continuing anyway."
-  done
+  litellm_url="http://localhost:$(env_get LITELLM_PORT || echo 4000)"
+  if wait_url "$litellm_url/health/liveliness" 30; then
+    ok "LiteLLM is healthy"
+  else
+    warn "LiteLLM did not become healthy in 30s — continuing anyway."
+  fi
 else
   ok "LiteLLM already running"
 fi
@@ -116,18 +82,12 @@ compose --profile coding-web up -d openhands
 openhands_port="$(env_get OPENHANDS_PORT || echo 3030)"
 openhands_url="http://localhost:${openhands_port}"
 section "⏳ Waiting for OpenHands at $openhands_url"
-for i in $(seq 1 60); do
-  # Any HTTP response (even 401/redirect) means the server is up.
-  if curl -sf -o /dev/null -w '%{http_code}' "$openhands_url/" 2>/dev/null \
-       | grep -qE '^(2|3|4)[0-9][0-9]$'; then
-    ok "OpenHands up at $openhands_url"
-    break
-  fi
-  sleep 1
-  if [[ $i -eq 60 ]]; then
-    warn "OpenHands did not respond in 60s. Check: docker logs edge-openhands"
-  fi
-done
+# Any HTTP response (incl. 401/redirect) means the server is up.
+if wait_url "$openhands_url/" 60 --any; then
+  ok "OpenHands up at $openhands_url"
+else
+  warn "OpenHands did not respond in 60s. Check: docker logs edge-openhands"
+fi
 
 # --- 6. Done — print next steps --------------------------------------------
 log ""

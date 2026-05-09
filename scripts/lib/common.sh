@@ -133,3 +133,109 @@ ensure_ollama_started() {
   fi
   ok "edge-ollama is up"
 }
+
+# --- HTTP wait helper --------------------------------------------------------
+# Poll URL until it returns 2xx (or any HTTP code if --any) or timeout. Used
+# by setup scripts that wait for LiteLLM / OpenHands / etc. to come up.
+#   wait_url URL [TIMEOUT_SECONDS] [--any]
+wait_url() {
+  local url="$1" timeout="${2:-30}" mode="${3:-2xx}" i code
+  for ((i=0; i<timeout; i++)); do
+    if [[ "$mode" == "--any" ]]; then
+      code=$(curl -s -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000")
+      [[ "$code" =~ ^[2-4][0-9][0-9]$ ]] && return 0
+    else
+      curl -sf "$url" >/dev/null 2>&1 && return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+# --- .env read/write helpers -------------------------------------------------
+# Previously duplicated across 32/36/37/38 — unify here. Scripts that need to
+# touch .env should source this file and use these helpers.
+ENV_FILE_PATH="${ENV_FILE_PATH:-$REPO_ROOT/.env}"
+
+# Print the value for KEY in $ENV_FILE_PATH. Returns 1 if unset/blank.
+env_get() {
+  local key="$1" val
+  [[ -f "$ENV_FILE_PATH" ]] || return 1
+  val=$(awk -F= -v k="$key" '
+    /^[[:space:]]*#/ { next }
+    $1 == k { sub(/^[^=]*=/, ""); print; exit }
+  ' "$ENV_FILE_PATH")
+  [[ -n "$val" ]] || return 1
+  printf '%s' "$val"
+}
+
+# Set or replace KEY=VALUE in $ENV_FILE_PATH. Adds the line if missing.
+env_set() {
+  local key="$1" value="$2" tmp
+  [[ -f "$ENV_FILE_PATH" ]] || die "$ENV_FILE_PATH not found. Run: bash scripts/00-install.sh"
+  if grep -qE "^[[:space:]]*${key}=" "$ENV_FILE_PATH"; then
+    tmp="$(mktemp)"
+    awk -v k="$key" -v v="$value" '
+      BEGIN { done = 0 }
+      {
+        if (!done && $0 ~ "^[[:space:]]*"k"=") {
+          print k"="v
+          done = 1
+        } else {
+          print
+        }
+      }
+    ' "$ENV_FILE_PATH" > "$tmp"
+    install -m 0640 "$tmp" "$ENV_FILE_PATH"
+    rm -f "$tmp"
+  else
+    printf "%s=%s\n" "$key" "$value" >> "$ENV_FILE_PATH"
+  fi
+}
+
+# --- Host wrapper installer --------------------------------------------------
+# Picks /usr/local/bin if writable (with sudo as a fallback), else ~/.local/bin.
+# Echoes the chosen install dir on stdout. Used by 31/33/38/00 to install
+# CLI wrappers; result is registered via manifest_add_path.
+#
+# Usage:
+#   target_dir=$(pick_install_dir) ; install -m 0755 ... "$target_dir/foo"
+pick_install_dir() {
+  local install_dir
+  if [[ -w /usr/local/bin ]]; then
+    install_dir="/usr/local/bin"
+  elif command -v sudo >/dev/null 2>&1; then
+    install_dir="/usr/local/bin"
+  else
+    install_dir="$HOME/.local/bin"
+    mkdir -p "$install_dir"
+  fi
+  printf '%s' "$install_dir"
+}
+
+# Install $src as $name into the chosen dir, using sudo only when needed.
+# Echoes the absolute target path; returns 0 on success.
+install_wrapper() {
+  local name="$1" src="$2" target sudo_cmd=""
+  local dir; dir="$(pick_install_dir)"
+  target="$dir/$name"
+  if [[ "$dir" == "/usr/local/bin" && ! -w /usr/local/bin ]]; then
+    sudo_cmd="sudo"
+  fi
+  if [[ -n "$sudo_cmd" ]]; then
+    $sudo_cmd install -m 0755 "$src" "$target"
+  else
+    install -m 0755 "$src" "$target"
+  fi
+  printf '%s' "$target"
+}
+
+# Warn (once) if a chosen install dir is not on PATH for the current shell.
+warn_if_not_on_path() {
+  local dir="$1"
+  case ":$PATH:" in
+    *":$dir:"*) return 0 ;;
+  esac
+  warn "$dir is not on PATH in this shell."
+  warn "Add to your shell rc:  export PATH=\"$dir:\$PATH\""
+}

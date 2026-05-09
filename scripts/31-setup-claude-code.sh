@@ -30,6 +30,9 @@
 
 # shellcheck source=lib/common.sh
 source "$(dirname "$0")/lib/common.sh"
+# shellcheck source=lib/manifest.sh
+source "$(dirname "$0")/lib/manifest.sh"
+load_env  # so manifest knows about $AI_DATA_ROOT
 
 DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b}"
 EMBED_MODEL="${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
@@ -86,22 +89,7 @@ install_claude_wrapper() {
   bin_dir="$nvm_node_dir/$node_ver/bin"
   [[ -x "$bin_dir/claude" ]] || return 0
 
-  local target sudo_cmd=""
-  if [[ -w /usr/local/bin ]]; then
-    target="/usr/local/bin/claude"
-  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-    target="/usr/local/bin/claude"
-    sudo_cmd="sudo"
-  elif command -v sudo >/dev/null 2>&1; then
-    info "Installing system-wide claude wrapper to /usr/local/bin (sudo)…"
-    target="/usr/local/bin/claude"
-    sudo_cmd="sudo"
-  else
-    target="$HOME/.local/bin/claude"
-    mkdir -p "$HOME/.local/bin"
-  fi
-
-  local tmp
+  local tmp target
   tmp="$(mktemp)"
   cat >"$tmp" <<EOF
 #!/usr/bin/env bash
@@ -110,17 +98,11 @@ export PATH="$bin_dir:\$PATH"
 exec "$bin_dir/claude" "\$@"
 EOF
   chmod u+rwX,g+rwX,o-rwx "$tmp"
-  if [[ -n "$sudo_cmd" ]]; then
-    $sudo_cmd install -m 0755 "$tmp" "$target"
-  else
-    install -m 0755 "$tmp" "$target"
-  fi
+  target="$(install_wrapper claude "$tmp")"
   rm -f "$tmp"
+  manifest_add_path "$target"
   ok "Installed claude wrapper: $target"
-  if [[ "$target" == "$HOME/.local/bin/claude" ]] && ! echo ":$PATH:" | grep -q ":$HOME/.local/bin:"; then
-    warn "$HOME/.local/bin is not on PATH in this shell."
-    warn "Run:  export PATH=\"\$HOME/.local/bin:\$PATH\""
-  fi
+  warn_if_not_on_path "$(dirname "$target")"
 }
 
 install_node_via_nodesource() {
@@ -174,6 +156,7 @@ else
   else
     npm install -g @anthropic-ai/claude-code
   fi
+  manifest_add_npm @anthropic-ai/claude-code
 fi
 
 # Make `claude` available in every shell without manual nvm sourcing.
@@ -196,6 +179,7 @@ register_mcp() {
     claude mcp remove "$name" --scope user >/dev/null 2>&1 || true
   fi
   claude mcp add "$name" --scope user "$@"
+  manifest_add_mcp "$name"
   ok "Registered MCP: $name"
 }
 
