@@ -25,7 +25,19 @@
       "models": {
         "claude-opus-4-7":   { "name": "Claude Opus 4.7   (cloud)" },
         "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6 (cloud)" },
-        "claude-haiku-4-5":  { "name": "Claude Haiku 4.5  (cloud)" }
+        "claude-haiku-4-5":  { "name": "Claude Haiku 4.5  (cloud)" },
+        "lmstudio":          { "name": "LM Studio (host, via LiteLLM)" }
+      }
+    },
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (host, direct)",
+      "options": {
+        "baseURL": "http://localhost:1234/v1",
+        "apiKey": "lm-studio"
+      },
+      "models": {
+        "openai/gpt-oss-20b": { "name": "LM Studio: gpt-oss 20B (default video model)" }
       }
     }
   },

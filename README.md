@@ -30,6 +30,7 @@ This stack runs local LLMs (Ollama + Open WebUI) with optional vLLM and PyTorch 
 - ☁️ **Unified Web UI** — optional [LiteLLM proxy](./docs/AI-CODING-SETUP.md#option-c--unified-web-ui-cloud--local-in-one-dropdown) puts Claude / GPT / Gemini in the same Open WebUI dropdown as your local models, also surfaced in OpenCode
 - 🌐 **Web Codex playbook (TH)** — step-by-step browser workflow for Codex/Claude-style local coding in Open WebUI: [docs/WEB-CODEX-PLAYBOOK.md](./docs/WEB-CODEX-PLAYBOOK.md)
 - 🪄 **Claude Code TUI on local Ollama** — [Option D](./docs/AI-CODING-SETUP.md#option-d--claude-code-tui-local-ollama-brain) routes the official `claude` CLI through LiteLLM's Anthropic adapter so a local model is the brain — same UX, no subscription burn
+- 🎙 **Claude Code on LM Studio** — [Option F](./docs/AI-CODING-SETUP.md#option-f--claude-code-tui-on-lm-studio) plugs LM Studio (host desktop app) directly into Claude Code via its Anthropic-compatible endpoint, like the [YouTube walkthrough](https://www.youtube.com/watch?v=Cyn_Dm05_eU). The same model also appears in Open WebUI / OpenCode / OpenHands via LiteLLM (`make lmstudio`)
 
 ---
 
@@ -230,9 +231,11 @@ matches the job. All of them edit your real git repo and can push to GitHub.
 | You want… | Use | One-liner |
 |---|---|---|
 | Codex/Claude-Code feel, 100% local, edits files directly | **OpenCode TUI** (Option A) | `make codex` |
-| Same UX but using a local Ollama model as the brain | **Claude Code on local** (Option D) | `make claude-local` |
+| Same UX but using a local Ollama model as the brain | **Claude Code on local Ollama** (Option D) | `make claude-local` |
+| Same UX but the brain is a model you manage in LM Studio | **Claude Code on LM Studio** (Option F) | `make claude-lmstudio` |
 | Hardest reasoning (cloud Claude) + local worker via MCP | **Claude Code + cloud** (Option B) | `make claude-cloud` |
 | Browser only — chat in Open WebUI, paste back a unified diff | **Web Codex** (Option C-style) | `make webui`, then `make apply-patch P=/tmp/x.patch COMMIT=1 PUSH=1 PR=1` |
+| Surface a host LM Studio model in Open WebUI / OpenCode dropdowns | **LM Studio shared** (Option F-shared) | `make lmstudio` |
 
 `make codex` and `make claude-local` are the closest equivalents to ChatGPT
 Codex / Claude Code on a local model — they edit files in this repo and run

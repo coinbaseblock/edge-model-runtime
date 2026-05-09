@@ -74,5 +74,22 @@ if docker ps --format '{{.Names}}' | grep -qx 'edge-litellm'; then
   fi
 fi
 
+# LM Studio is host-side, opt-in. Only probe if the wrapper is installed
+# OR LMSTUDIO_PORT is set in .env — otherwise we'd nag every user.
+lmstudio_port="${LMSTUDIO_PORT:-1234}"
+lmstudio_url="http://localhost:${lmstudio_port}"
+if command -v claude-lmstudio >/dev/null 2>&1 || [[ -n "${LMSTUDIO_MODEL:-}" ]]; then
+  if curl -sf "$lmstudio_url/v1/models" >/dev/null 2>&1; then
+    if command -v jq >/dev/null 2>&1; then
+      loaded=$(curl -sf "$lmstudio_url/v1/models" | jq -r '.data[0].id // "(none)"')
+      ok "LM Studio: OK (loaded: $loaded)"
+    else
+      ok "LM Studio: OK"
+    fi
+  else
+    warn "LM Studio: not responding at $lmstudio_url (desktop app not running, or model not loaded)"
+  fi
+fi
+
 log ""
 ok "Verification complete"

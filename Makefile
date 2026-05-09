@@ -3,7 +3,8 @@ SHELL := /usr/bin/env bash
 
 .PHONY: help setup lint test format verify quick-check hooks-install \
         ai-review ai-fix ai-pr \
-        up down webui codex claude-local claude-cloud cloud-models apply-patch
+        up down webui codex claude-local claude-cloud claude-lmstudio \
+        cloud-models lmstudio apply-patch
 
 help:
 	@echo "Stack:"
@@ -13,10 +14,12 @@ help:
 	@echo "  make verify        - run runtime verification"
 	@echo ""
 	@echo "AI coding entry points (pick one):"
-	@echo "  make codex         - launch OpenCode TUI (Option A, 100% local, edits files & runs gh)"
-	@echo "  make claude-local  - launch Claude Code TUI on a local Ollama model (Option D)"
-	@echo "  make claude-cloud  - launch Claude Code TUI on Anthropic (Option B, brain) + local MCP worker"
-	@echo "  make cloud-models  - register cloud models (Claude/GPT/Gemini) into the WebUI dropdown (Option C)"
+	@echo "  make codex          - launch OpenCode TUI (Option A, 100% local, edits files & runs gh)"
+	@echo "  make claude-local   - launch Claude Code TUI on a local Ollama model (Option D)"
+	@echo "  make claude-cloud   - launch Claude Code TUI on Anthropic (Option B, brain) + local MCP worker"
+	@echo "  make claude-lmstudio- launch Claude Code TUI on a host LM Studio model (Option F-direct)"
+	@echo "  make cloud-models   - register cloud models (Claude/GPT/Gemini) into the WebUI dropdown (Option C)"
+	@echo "  make lmstudio       - register host LM Studio in LiteLLM so it appears in WebUI/OpenCode (Option F-shared)"
 	@echo "  make apply-patch P=/tmp/x.patch [COMMIT=1 PUSH=1 PR=1 FORCE=1] [MSG=\"...\"]"
 	@echo "                     - apply a patch from WebUI (Web Codex flow); refuses dirty tree unless FORCE=1"
 	@echo ""
@@ -105,8 +108,15 @@ claude-cloud: up
 	@command -v claude >/dev/null 2>&1 || bash scripts/31-setup-claude-code.sh
 	cd $(CURDIR) && claude
 
+claude-lmstudio:
+	@command -v claude-lmstudio >/dev/null 2>&1 || bash scripts/38-setup-claude-lmstudio.sh
+	cd $(CURDIR) && claude-lmstudio
+
 cloud-models:
 	bash scripts/32-setup-cloud-models.sh
+
+lmstudio:
+	bash scripts/37-setup-lmstudio.sh
 
 # Usage: make apply-patch P=/tmp/web.patch [COMMIT=1 PUSH=1 PR=1] [FORCE=1] [MSG="subject"]
 # MSG is forwarded as a single argument so spaces/quotes survive, e.g.:
