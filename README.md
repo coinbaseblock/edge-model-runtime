@@ -708,3 +708,11 @@ MIT — see [LICENSE](./LICENSE)
 ## 🙏 Credits
 
 Built on top of [Ollama](https://github.com/ollama/ollama), [Open WebUI](https://github.com/open-webui/open-webui), [vLLM](https://github.com/vllm-project/vllm), and the [NVIDIA Container Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit).
+
+## Local AI Coding Proof
+
+This repository was safely edited by the local Ollama-powered AI coding workflow through emr aider.
+
+Proof marker: LOCAL_AI_EDIT_PROOF_2026_OLLAMA_EMR_AIDER
+
+See docs/LOCAL_AI_CODING_DEMO.md for the full local AI coding demo.
