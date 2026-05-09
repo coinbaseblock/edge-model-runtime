@@ -10,7 +10,7 @@
 #     emr stop  | down         stop core services
 #     emr status               health check
 #     emr pull <model>         download an Ollama model
-#     emr nemotron [variant]   download an NVIDIA Nemotron variant
+#     emr nemotron [variant]   download a Nemotron variant
 #     emr models               list installed models
 #     emr rm <model>           remove a model
 #     emr run <model>          interactive CLI with a model
@@ -22,6 +22,10 @@
 #     emr uninstall            interactive uninstall menu
 #     emr setup <profile>      AI coding profile bootstrap (see below)
 #     emr verify-patch <file>  apply a Web-Codex unified diff
+#     emr aider                run the aider AI coding CLI (pass all remaining args)
+#     emr systemd-install      install systemd service for edge-model-runtime
+#     emr systemd-uninstall    uninstall systemd service for edge-model-runtime
+#     emr backup               backup secrets (.env and .env.versions) with optional GPG encryption
 #     emr help [<cmd>]         this message, or details for a subcommand
 #
 # Profiles for `emr setup`:
@@ -32,7 +36,7 @@
 #     coding-web               OpenHands web IDE (E)
 #     lmstudio                 Share LM Studio via LiteLLM (F-shared)
 #     claude-lmstudio          Claude Code TUI on LM Studio direct (F-direct)
-#     hooks                    Install repo git hooks
+#     hooks                    install repo git hooks
 #
 # All subcommands shell out to the existing scripts/*.sh files — this is a
 # façade, not a rewrite. The numbered scripts remain the source of truth.
@@ -77,19 +81,27 @@ Cleanup:
 
 AI coding profiles:
   setup opencode                       Option A — OpenCode TUI, 100% local
-  setup claude-code                    Option B — Claude Code + cloud + MCP
+  setup claude-code                    Option B — Claude Code + cloud subscription, Ollama-as-worker (B)
   setup cloud-models                   Option C — Claude/GPT/Gemini in WebUI
-  setup claude-local [model]           Option D — Claude Code TUI on Ollama
-  setup coding-web                     Option E — OpenHands web IDE
-  setup lmstudio                       Option F-shared — LM Studio via LiteLLM
-  setup claude-lmstudio                Option F-direct — Claude Code on LM Studio
+  setup claude-local [model]           Option D — Claude Code TUI on local Ollama via LiteLLM (D)
+  setup coding-web                     Option E — OpenHands web IDE (E)
+  setup lmstudio                       Option F-shared — LM Studio via LiteLLM (F-shared)
+  setup claude-lmstudio                Option F-direct — Claude Code on LM Studio (F-direct)
   setup hooks                          install repo git hooks
 
 Patch flow:
   apply-patch <patch> [opts]           apply a Web-Codex unified diff
 
+Secrets:
+  backup               backup secrets (.env and .env.versions) with optional GPG encryption
+
+Systemd:
+  systemd-install      install systemd service for edge-model-runtime
+  systemd-uninstall    uninstall systemd service for edge-model-runtime
+
 Misc:
-  help [<command>]                     show this help
+  aider                run the aider AI coding CLI (pass all remaining args)
+  help [<command>]         show this help
   version                              show emr version
 
 For long-form docs:  README.md, docs/AI-CODING-SETUP.md
@@ -165,6 +177,18 @@ EOF
   apply-patch)
                   exec bash "$SCRIPTS/35-apply-web-patch.sh" "$@" ;;
 
+  aider)
+                  exec bash "$SCRIPTS/06-coding-cli.sh" "$@" ;;
+
+  systemd-install)
+                  exec bash "$SCRIPTS/07-install-systemd.sh" "$@" ;;
+
+  systemd-uninstall)
+                  exec bash "$SCRIPTS/17-uninstall-systemd.sh" "$@" ;;
+
+  backup)
+                  exec bash "$SCRIPTS/19-backup-secrets.sh" "$@" ;;
+
   version|--version|-v)
                   cd "$REPO_ROOT"
                   if git rev-parse --short HEAD >/dev/null 2>&1; then
@@ -181,6 +205,10 @@ EOF
                       install)    bash "$SCRIPTS/00-install.sh" --help 2>/dev/null || head -20 "$SCRIPTS/00-install.sh" ;;
                       pull)       sed -n '/Usage:/,/Browse models/p' "$SCRIPTS/04-pull-model.sh" ;;
                       apply-patch) sed -n '/Usage:/,/-----/p' "$SCRIPTS/35-apply-web-patch.sh" ;;
+                      aider)      bash "$SCRIPTS/06-coding-cli.sh" --help 2>/dev/null || head -20 "$SCRIPTS/06-coding-cli.sh" ;;
+                      systemd-install) bash "$SCRIPTS/07-install-systemd.sh" --help 2>/dev/null || head -20 "$SCRIPTS/07-install-systemd.sh" ;;
+                      systemd-uninstall) bash "$SCRIPTS/17-uninstall-systemd.sh" --help 2>/dev/null || head -20 "$SCRIPTS/17-uninstall-systemd.sh" ;;
+                      backup)     bash "$SCRIPTS/19-backup-secrets.sh" --help 2>/dev/null || head -20 "$SCRIPTS/19-backup-secrets.sh" ;;
                       *)          usage ;;
                     esac
                   else
