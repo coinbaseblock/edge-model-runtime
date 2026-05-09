@@ -113,6 +113,113 @@ open http://localhost:3000   # or http://<host-ip>:3000 from another machine
 
 ---
 
+## 🌐 End-to-end: Web UI → local model → GitHub PR
+
+This is the full Codex / Claude-Code-style loop using **only the browser** for the
+chat, with a local Ollama model as the brain. The model proposes a unified diff,
+and one `make` command applies it, commits, pushes, and opens a PR.
+
+Detailed Thai walkthrough: [`docs/WEB-CODEX-PLAYBOOK.md`](./docs/WEB-CODEX-PLAYBOOK.md).
+The numbered steps below are the same flow, condensed.
+
+### Step 1 — Pull a coding model
+
+```bash
+bash scripts/01-start.sh                          # core stack (Ollama + Open WebUI)
+bash scripts/04-pull-model.sh qwen2.5-coder:14b   # 7b for ≤8 GB VRAM, 32b for 24 GB+
+bash scripts/03-verify.sh                         # confirm GPU + endpoints healthy
+```
+
+Multi-model? Add lines to [`models.txt`](./models.txt) and run
+`bash scripts/04b-sync-models.sh` instead — see [Multi-model Runtime](#multi-model-runtime-declarative-registry).
+
+### Step 2 — One-time GitHub auth (host-side)
+
+`make apply-patch ... PR=1` shells out to `gh`, so authorize it once:
+
+```bash
+gh auth login            # pick GitHub.com → HTTPS → paste a PAT (repo scope)
+gh auth status           # verify
+```
+
+### Step 3 — Open the Web UI and configure a Codex preset
+
+```bash
+make webui               # opens http://localhost:3000
+```
+
+In Open WebUI:
+
+1. **Workspace → Models →** pick `qwen2.5-coder:*`.
+2. Paste the **Codex-style system prompt** from
+   [`docs/WEB-CODEX-PLAYBOOK.md` §2](./docs/WEB-CODEX-PLAYBOOK.md#2-ตั้งค่า-model-preset-ใน-open-webui).
+3. Set **Temperature = 0.1–0.2** and save as the default for coding chats.
+4. *(Optional)* `bash scripts/32-setup-cloud-models.sh` — adds Claude / GPT /
+   Gemini to the **same dropdown** via LiteLLM, so you can A/B local vs. cloud
+   without leaving the browser.
+
+### Step 4 — Two-pass chat (Plan, then Patch)
+
+Use the Codex/Claude-Code rhythm right inside the WebUI chat:
+
+- **Pass A — Plan.** Paste the relevant files / paths and ask for a 3–7 bullet
+  plan plus assumptions. Iterate until the plan is right.
+- **Pass B — Patch.** Then send:
+
+  ```text
+  Now output ONLY a unified diff patch.
+  Rules:
+  - No explanation text outside the diff.
+  - Keep changes minimal.
+  - Include file paths relative to repo root.
+  ```
+
+Copy the diff from the chat into a local file:
+
+```bash
+$EDITOR /tmp/web.patch        # paste the unified diff
+```
+
+### Step 5 — Apply, commit, push, open PR (one command)
+
+```bash
+# dry preview only
+make apply-patch P=/tmp/web.patch
+
+# apply + commit + push + open PR on GitHub
+make apply-patch P=/tmp/web.patch COMMIT=1 PUSH=1 PR=1 \
+  MSG="fix: handle empty config in loader"
+```
+
+Behind the scenes, [`scripts/35-apply-web-patch.sh`](./scripts/35-apply-web-patch.sh):
+
+1. Refuses to run on a dirty working tree (override with `FORCE=1`) so your
+   in-flight WIP is never swept into the AI commit.
+2. Runs `git apply --check` first — if it fails, paste the error back into
+   the WebUI chat and ask the model to regenerate just the broken hunks.
+3. Applies the patch, commits with `MSG`, pushes the branch, and runs
+   `gh pr create` when `PR=1`.
+
+### Step 6 — Verify, then iterate
+
+```bash
+bash scripts/03-verify.sh     # stack healthy
+git log --oneline -5          # confirm AI commit landed
+gh pr view --web              # review the PR in the browser
+```
+
+If reviewers leave comments, paste them back into the WebUI chat and repeat
+**Step 4 → Step 5**. The loop is: *chat in browser → diff → `make apply-patch`
+→ PR updated*.
+
+> **Want the model to edit files directly instead of producing a diff?**
+> That's [Option A (`make codex`)](#pick-your-ai-coding-workflow) or
+> [Option D (`make claude-local`)](#pick-your-ai-coding-workflow) — same local
+> Ollama brain, but a TUI agent that runs `git`/`gh` itself. The browser flow
+> above is the equivalent for users who want to stay 100% in the WebUI.
+
+---
+
 ## 🎓 Usage
 
 ### Pick your AI coding workflow
