@@ -1,14 +1,14 @@
 # AI-assisted coding on this stack
 
-Four ways to use this runtime. Pick one — they coexist.
+Five ways to use this runtime. Pick one — they coexist.
 
-| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI | Option D · Claude Code TUI on local Ollama |
-|---|---|---|---|---|
-| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | TUI (terminal) |
-| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown | Claude Code (TUI) — but the brain is Ollama |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu | 100% local Ollama (via LiteLLM Anthropic adapter) |
-| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud | $0 |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work | you like Claude Code's UX but want a local model |
+| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI | Option D · Claude Code TUI on local Ollama | Option E · OpenHands web IDE |
+|---|---|---|---|---|---|
+| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | TUI (terminal) | OpenHands (browser) |
+| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown | Claude Code (TUI) — but the brain is Ollama | OpenHands agent (open source) |
+| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu | 100% local Ollama (via LiteLLM Anthropic adapter) | Any model from LiteLLM (cloud + local), pick in UI |
+| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud | $0 | $0 for local, pay-per-token for cloud |
+| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work | you like Claude Code's UX but want a local model | "Codex / claude.ai/code"-style: pick a repo in a browser, agent clones, edits, runs, opens PR |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -332,6 +332,126 @@ talks to Anthropic via your subscription.
   prefer Option B (cloud brain, local worker).
 - LiteLLM logs every request at `INFO` by default. Set
   `LITELLM_LOG=WARNING` in `.env` to quiet the container logs.
+
+---
+
+## Option E — Web agentic IDE (OpenHands)
+
+The browser-native counterpart to Claude Code. OpenHands is an open-source
+agentic IDE that runs as a service on your host: open `http://<host>:3030`,
+connect a GitHub account, point at a repo, and chat with an agent that can
+clone, edit, run shell commands, run tests, commit, and push — all visible
+in a file-tree + chat + terminal layout, no TUI required.
+
+```
+                              ┌─────────────────────────────┐
+                              │  Browser                     │
+                              │  ───────────────────────────│
+  http://<host>:3030 ─────────►│ OpenHands UI                │
+                              │  (file tree · chat · term)  │
+                              └────────────┬────────────────┘
+                                           │ /v1/messages
+                                           ▼
+                                   ┌──────────────┐
+                                   │   LiteLLM    │  (your existing proxy)
+                                   │   :4000      │
+                                   └──────┬───────┘
+                                          │
+                       ┌──────────────────┼─────────────────────┐
+                       ▼                  ▼                     ▼
+                 Anthropic           OpenAI/Gemini          local Ollama
+                 (claude-*)            (optional)         (qwen, nemotron)
+```
+
+This runs **alongside** Open WebUI on the same host, on a different port —
+both stay available, no fork or patch of Open WebUI is involved. The agent
+spawns short-lived sandbox containers via the host's Docker socket; that's
+the trust model — same as any docker-in-docker tool, only enable on
+hardware you own.
+
+### Prerequisites
+
+- Option C set up first (`bash scripts/32-setup-cloud-models.sh`) so the
+  LiteLLM proxy and `LITELLM_MASTER_KEY` exist.
+- Docker socket access for the user running the script (the wizard uses
+  `compose --profile coding-web`, which mounts `/var/run/docker.sock`).
+
+### One-time setup
+
+```bash
+bash scripts/36-setup-coding-web.sh
+```
+
+That wizard:
+1. Verifies `LITELLM_MASTER_KEY` exists and the LiteLLM proxy is healthy.
+2. Creates `${AI_DATA_ROOT}/openhands` for OpenHands state.
+3. Pulls the OpenHands image and starts the `coding-web` profile.
+4. Waits for the HTTP port to come up.
+5. Prints the URL plus the GitHub OAuth callback URL you'd need when
+   registering an OAuth App.
+
+### Use it from the browser
+
+1. Open `http://<host>:3030`.
+2. **Settings → LLM** (one-time)
+   - Provider: `LiteLLM Proxy`
+   - Base URL: `http://litellm:4000`
+   - API key: the `LITELLM_MASTER_KEY` from `.env`
+   - Model: any id LiteLLM serves — e.g. `claude-opus-4-7`,
+     `qwen2.5-coder-large`, `nemotron-nano`
+3. **Settings → Git → connect GitHub**
+   - **OAuth (recommended).** Follow "GitHub OAuth setup" below — one-time.
+   - Or paste a fine-grained PAT (`repo` + `workflow` scopes).
+4. **New conversation**, e.g.
+   > Clone `https://github.com/<you>/<repo>`, find the failing test in
+   > `tests/api/users.test.ts`, fix it, run the suite, and open a PR
+   > titled "fix: null guard in users router".
+
+### GitHub OAuth setup (optional, one-time)
+
+1. https://github.com/settings/developers → **New OAuth App**
+2. Fill in:
+   - Application name: `edge-openhands`
+   - Homepage URL: `http://<host>:3030`
+   - Authorization callback URL:
+     `http://<host>:3030/api/integrations/github/callback`
+3. Create the app, copy **Client ID** and (after generating) **Client
+   Secret**.
+4. Add to `.env`:
+   ```env
+   GITHUB_APP_CLIENT_ID=<client id>
+   GITHUB_APP_CLIENT_SECRET=<client secret>
+   ```
+5. Re-run `bash scripts/36-setup-coding-web.sh` so the container picks up
+   the new env. After that, OpenHands' "Connect GitHub" button uses
+   OAuth — no token paste needed.
+
+### Stopping just the web IDE
+
+The local stack keeps running:
+
+```bash
+docker compose --profile coding-web stop openhands
+```
+
+### Caveats
+
+- OpenHands' main app gets root-equivalent power on the host via the
+  Docker socket. That's how it spawns sandboxes — there's no lighter
+  alternative without giving up the "agent runs commands" feature. Treat
+  this stack as a single-tenant trusted environment.
+- Sandbox containers are per-session and ephemeral. State for
+  conversations / settings / OAuth lives in `${AI_DATA_ROOT}/openhands`;
+  cloned repos inside a sandbox **do not** persist across sessions
+  unless you `git push` them somewhere. This is intentional for a PoC —
+  treat each task as an end-to-end clone → edit → push cycle.
+- 7B-class local models are flaky for OpenHands' tool calls (same caveat
+  as Option D). Use `qwen2.5-coder-large` (32B), `claude-haiku-4-5`, or
+  larger for reliable agent behaviour.
+- This is a **proof-of-concept** scope: OpenHands is enabled but not
+  auto-pulled by `00-install.sh`, no nav link is wired into Open WebUI,
+  and no end-to-end PR-creation test is in `03-verify.sh`. If the PoC
+  works for your use cases, those are the obvious next steps.
 
 ---
 

@@ -16,7 +16,7 @@ cat <<EOF
 This will remove:
   • All containers from this stack
   • Docker images: $OLLAMA_IMAGE, $OPEN_WEBUI_IMAGE, $CUDA_TEST_IMAGE
-    (and LiteLLM/vLLM/training images if pulled)
+    (and LiteLLM/OpenHands/vLLM/training images if pulled)
   • Dangling images and build cache
 
 This will PRESERVE:
@@ -37,7 +37,7 @@ compose down --remove-orphans
 
 # --- Remove images from this stack -----------------------------------------
 section "Removing images"
-for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE; do
+for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE OPENHANDS_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE; do
   img="${!var:-}"
   [[ -z "$img" ]] && continue
   if docker image inspect "$img" >/dev/null 2>&1; then
