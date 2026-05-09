@@ -1,14 +1,14 @@
 # AI-assisted coding on this stack
 
-Five ways to use this runtime. Pick one — they coexist.
+Six ways to use this runtime. Pick one — they coexist.
 
-| | Option A · OpenCode | Option B · Claude Code + Ollama worker | Option C · Unified Web UI | Option D · Claude Code TUI on local Ollama | Option E · OpenHands web IDE |
-|---|---|---|---|---|---|
-| Main interface | TUI (terminal) | TUI (terminal) | Open WebUI (browser) | TUI (terminal) | OpenHands (browser) |
-| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown | Claude Code (TUI) — but the brain is Ollama | OpenHands agent (open source) |
-| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu | 100% local Ollama (via LiteLLM Anthropic adapter) | Any model from LiteLLM (cloud + local), pick in UI |
-| Cost | $0 | Claude subscription | $0 for local, pay-per-token for cloud | $0 | $0 for local, pay-per-token for cloud |
-| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models, non-coding work | you like Claude Code's UX but want a local model | "Codex / claude.ai/code"-style: pick a repo in a browser, agent clones, edits, runs, opens PR |
+| | A · OpenCode | B · Claude Code + Ollama worker | C · Unified Web UI | D · Claude Code on local Ollama | E · OpenHands web IDE | F · Claude Code on LM Studio |
+|---|---|---|---|---|---|---|
+| Main interface | TUI | TUI | Open WebUI (browser) | TUI | OpenHands (browser) | TUI |
+| Main agent | OpenCode (open source) | Claude Code (subscription) | Whatever model you pick from the dropdown | Claude Code — brain is Ollama | OpenHands agent (open source) | Claude Code — brain is LM Studio |
+| Inference | 100% local Ollama | Cloud Claude **+** local Ollama for offload | Local Ollama **and** cloud (Claude/GPT/Gemini) in one menu | 100% local Ollama (via LiteLLM) | Any model from LiteLLM | 100% local LM Studio (host desktop app) |
+| Cost | $0 | Claude subscription | $0 local / pay cloud | $0 | $0 local / pay cloud | $0 |
+| Best when | offline / privacy required | hardest reasoning, multi-file refactor | quick chat, comparing models | you like Claude Code's UX but want a local Ollama model | "Codex / claude.ai/code"-style web flow | already manage models in LM Studio (GGUF, MLX, Anthropic-compat endpoint) — same UX as the [YouTube walkthrough](https://www.youtube.com/watch?v=Cyn_Dm05_eU) |
 
 Both options share the same **local MCP worker** at
 [`scripts/lib/ollama-mcp-server.py`](../scripts/lib/ollama-mcp-server.py),
@@ -452,6 +452,157 @@ docker compose --profile coding-web stop openhands
   auto-pulled by `00-install.sh`, no nav link is wired into Open WebUI,
   and no end-to-end PR-creation test is in `03-verify.sh`. If the PoC
   works for your use cases, those are the obvious next steps.
+
+---
+
+## Option F — Claude Code TUI on LM Studio
+
+Same idea as Option D, but the local brain is [LM Studio](https://lmstudio.ai)
+— a desktop app many people already use to download and run GGUF / MLX
+models with a polished UI. Recent LM Studio builds expose **both** an
+OpenAI-compatible **and** an Anthropic-compatible local server, so Claude
+Code can talk to it directly with no proxy in between.
+
+This mirrors the
+[YouTube walkthrough](https://www.youtube.com/watch?v=Cyn_Dm05_eU) ("I Ran
+Claude Code for FREE… Here's How"): point `ANTHROPIC_BASE_URL` at LM
+Studio's `:1234`, pick the model id LM Studio reports, done.
+
+```
+┌──────────────┐   /v1/messages    ┌────────────┐
+│  claude TUI  │ ─────────────────►│  LM Studio │  (host desktop app, GPU)
+│ (unmodified) │   Anthropic JSON  │   :1234    │
+└──────────────┘                   └────────────┘
+```
+
+Two paths ship in this repo, and they coexist with each other and with
+options A–E:
+
+| Path | What you get | Run |
+|---|---|---|
+| **F-direct** | `claude-lmstudio` CLI wrapper. Fastest — no proxy hop. Same flow as the YouTube clip. | `bash scripts/38-setup-claude-lmstudio.sh` then `claude-lmstudio` |
+| **F-shared** | LM Studio appears as `lmstudio` in LiteLLM, surfacing in Open WebUI / OpenCode / OpenHands alongside Ollama and cloud models. | `bash scripts/37-setup-lmstudio.sh` |
+
+You can run both — F-direct gives you a Claude Code session straight on
+LM Studio, F-shared makes the same model show up in the browser dropdown.
+
+### Prerequisites
+
+1. Install LM Studio on the host: <https://lmstudio.ai>
+2. Open it, pick **My Models → Download** a model with strong tool-call
+   support. The video uses `openai/gpt-oss-20b`; alternatives that work
+   well: `qwen2.5-coder-32b-instruct`, `llama-3.1-70b-instruct`, any
+   instruct-tuned 13B+.
+3. Open the **Developer** tab → load the model → toggle **Status: Running**
+   on. Confirm "Reachable at" shows `http://<your-host>:1234`. The right-
+   hand panel shows the **API Model Identifier** — copy that string.
+
+### F-direct — `claude-lmstudio` (no proxy)
+
+```bash
+bash scripts/38-setup-claude-lmstudio.sh
+```
+
+That script:
+1. Probes LM Studio at `http://localhost:${LMSTUDIO_PORT:-1234}` and bails
+   with a clear hint if it's unreachable.
+2. Verifies the **Anthropic-compatible** endpoint (`POST /v1/messages`)
+   actually answers — older LM Studio builds only ship the OpenAI
+   endpoint, in which case you need to update.
+3. Reads (or auto-detects) the loaded model id from `/v1/models` and
+   stores it in `.env` as `LMSTUDIO_MODEL`.
+4. Installs the `claude` CLI if missing (delegates to
+   `scripts/31-setup-claude-code.sh`).
+5. Writes a wrapper at `/usr/local/bin/claude-lmstudio` (or
+   `~/.local/bin/claude-lmstudio` if no sudo) that exports
+   `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL` and
+   execs the regular `claude` binary.
+
+Use it:
+
+```bash
+cd /path/to/anywhere
+claude-lmstudio
+```
+
+The TUI is identical to a normal `claude` session — model line shows
+the LM Studio model id, every token of inference happens on the host.
+The plain `claude` command is **untouched** and still uses your cloud
+subscription.
+
+Sanity check (no TUI):
+
+```bash
+curl -s http://localhost:1234/v1/messages \
+  -H 'anthropic-version: 2023-06-01' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"openai/gpt-oss-20b","max_tokens":64,"messages":[{"role":"user","content":"say hi"}]}'
+```
+
+### F-shared — LM Studio in LiteLLM
+
+If you want the same LM Studio model to show up in Open WebUI, OpenCode,
+and OpenHands alongside Ollama and cloud Claude:
+
+```bash
+# Prerequisite: scripts/32-setup-cloud-models.sh has run at least once,
+# so LITELLM_MASTER_KEY exists. (37 will auto-generate one if not, but
+# 32 also wires Open WebUI to the proxy — which is what makes the model
+# visible in the browser.)
+bash scripts/37-setup-lmstudio.sh
+```
+
+That script:
+1. Probes LM Studio on `localhost:${LMSTUDIO_PORT:-1234}` (host side).
+2. Reads the loaded model id and reconciles it with `LMSTUDIO_MODEL`
+   in `.env` (offers to overwrite if they disagree).
+3. Ensures `LITELLM_MASTER_KEY` exists (generates one if needed).
+4. Recreates the LiteLLM container so it picks up the LM Studio entry
+   from [`litellm/config.yaml`](../litellm/config.yaml). The container
+   reaches LM Studio via `host.docker.internal:1234` (configured by
+   `extra_hosts` on the `litellm` service in `docker-compose.yml`).
+5. Smoke-tests `LiteLLM → LM Studio` with a real chat completion.
+
+Use it:
+
+* **Browser** (Open WebUI): pick `lmstudio` from the dropdown next to
+  `qwen2.5-coder`, `claude-opus-4-7`, etc.
+* **OpenCode TUI**: a `lmstudio` provider is wired into
+  [`opencode.json`](../opencode.json) for the **direct** path (port
+  1234), and `litellm/lmstudio` is also available via the `litellm`
+  provider.
+* **OpenHands** (Option E): pick model id `lmstudio`. Requests flow
+  `OpenHands → LiteLLM → host LM Studio`.
+* **Claude Code with `claude-local`-style wrapping**: not supported via
+  this path because LiteLLM rewrites the model id; use F-direct
+  (`claude-lmstudio`) instead.
+
+### Switching models in LM Studio
+
+LM Studio is a stateful desktop app: the running model is whatever you
+last loaded in the UI. To switch:
+
+1. Eject the current model in LM Studio, load a new one.
+2. Re-run whichever 37/38 setup you used. Both auto-detect the new id
+   and reconcile `LMSTUDIO_MODEL` in `.env`.
+
+### Caveats
+
+- **Tool-call quality varies by model.** 7B-class models still mis-
+  format Anthropic tool calls. Stick to instruct-tuned ≥ 13B (the
+  YouTube video uses 20B, which works well).
+- **LM Studio is per-user.** Models live in LM Studio's own folder, not
+  under `${AI_DATA_ROOT}`. The 3-tier cleanup in this repo does not
+  touch them — manage via LM Studio → My Models.
+- **Anthropic endpoint is build-dependent.** Very old LM Studio builds
+  only have the OpenAI endpoint. F-direct's setup script detects this
+  and tells you to update; F-shared (via LiteLLM, which only uses the
+  OpenAI endpoint) keeps working on older builds.
+- **From inside Docker, LM Studio is at `host.docker.internal:1234`.**
+  This is set up automatically via `extra_hosts` on the `litellm` and
+  `open-webui` services. On rare Linux setups where the gateway is
+  disabled, set `LMSTUDIO_HOST=172.17.0.1` (or your bridge IP) in
+  `.env` and re-run script 37.
 
 ---
 

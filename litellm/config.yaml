@@ -55,6 +55,28 @@ model_list:
       model: ollama_chat/nemotron3:nano-instruct
       api_base: http://ollama:11434
 
+  # --- LM Studio (host-side desktop app) -------------------------------------
+  # LM Studio (https://lmstudio.ai) runs on the host as a desktop app, not in
+  # a container. It exposes an OpenAI-compatible endpoint at
+  # http://<host>:1234/v1. We reach it via `host.docker.internal` (set in
+  # docker-compose.yml under extra_hosts on the litellm service).
+  #
+  # `LMSTUDIO_*` env vars come from .env (see .env.example). The model id
+  # LM Studio reports literally contains a slash (e.g. "openai/gpt-oss-20b"),
+  # so we tell LiteLLM the provider via `custom_llm_provider: openai` and pass
+  # the full model id as-is — otherwise LiteLLM would strip the leading
+  # "openai/" and the request would 404 in LM Studio.
+  #
+  # To switch the loaded model, change LMSTUDIO_MODEL in .env then:
+  #   docker compose --profile cloud up -d --force-recreate litellm
+  # Or just run `bash scripts/37-setup-lmstudio.sh` again.
+  - model_name: lmstudio
+    litellm_params:
+      model: os.environ/LMSTUDIO_MODEL
+      api_base: os.environ/LMSTUDIO_BASE_URL
+      api_key: os.environ/LMSTUDIO_API_KEY
+      custom_llm_provider: openai
+
   # --- OpenAI ----------------------------------------------------------------
   # Uncomment after setting OPENAI_PROVIDER_API_KEY in .env.
   # - model_name: gpt-4o

@@ -43,3 +43,19 @@ done
 
 section "💽 Filesystem"
 df -h "${AI_DATA_ROOT:-/}" 2>/dev/null || df -h /
+
+section "🎙  LM Studio (host-side, not managed by this stack)"
+lmstudio_port="${LMSTUDIO_PORT:-1234}"
+if curl -sf "http://localhost:${lmstudio_port}/v1/models" >/dev/null 2>&1; then
+  if command -v jq >/dev/null 2>&1; then
+    curl -sf "http://localhost:${lmstudio_port}/v1/models" \
+      | jq -r '.data[].id' | sed 's/^/  /'
+  else
+    ok "LM Studio responding at :${lmstudio_port} (install jq to list models)"
+  fi
+  log ""
+  log "  Model files live in LM Studio's own folder (not under AI_DATA_ROOT)."
+  log "  Manage them via the LM Studio UI → My Models."
+else
+  log "  LM Studio not running on :${lmstudio_port} — desktop app handles its own storage."
+fi
