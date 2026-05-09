@@ -285,6 +285,9 @@ bash scripts/33-setup-claude-local.sh                       # default: qwen2.5-c
 # or pick another LiteLLM model_name:
 bash scripts/33-setup-claude-local.sh qwen2.5-coder-large   # 32B, much better tool calls
 bash scripts/33-setup-claude-local.sh nemotron-nano
+bash scripts/33-setup-claude-local.sh gpt-oss               # OpenAI open-weights 20B,
+                                                            # the LM Studio video model
+                                                            # (pull with: scripts/04-pull-model.sh gpt-oss:20b)
 ```
 
 That script:
