@@ -33,13 +33,16 @@ check_compose_v2
 [[ -f "$ENV_FILE" ]] || die ".env not found. Run: bash scripts/00-install.sh"
 
 # --- helpers ---------------------------------------------------------------
-# Get a value from .env (empty string if unset/blank).
+# Get a value from .env. Exits non-zero when the key is unset or blank, so
+# callers can use `$(env_get FOO || echo default)` reliably.
 env_get() {
-  local key="$1"
-  awk -F= -v k="$key" '
+  local key="$1" val
+  val=$(awk -F= -v k="$key" '
     /^[[:space:]]*#/ { next }
     $1 == k { sub(/^[^=]*=/, ""); print; exit }
-  ' "$ENV_FILE"
+  ' "$ENV_FILE")
+  [[ -n "$val" ]] || return 1
+  printf '%s' "$val"
 }
 
 # Set/replace KEY=VALUE in .env. Adds the line if it does not exist yet.
