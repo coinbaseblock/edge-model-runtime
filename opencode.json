@@ -12,7 +12,8 @@
         "qwen2.5-coder:14b": { "name": "Qwen2.5 Coder 14B (local)" },
         "qwen2.5-coder:32b": { "name": "Qwen2.5 Coder 32B (local)" },
         "deepseek-coder-v2:16b": { "name": "DeepSeek Coder V2 16B (local)" },
-        "llama3.1:8b": { "name": "Llama 3.1 8B (local)" }
+        "llama3.1:8b": { "name": "Llama 3.1 8B (local)" },
+        "gpt-oss:20b":  { "name": "OpenAI gpt-oss 20B (local, video model)" }
       }
     },
     "litellm": {

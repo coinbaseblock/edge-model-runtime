@@ -55,6 +55,15 @@ model_list:
       model: ollama_chat/nemotron3:nano-instruct
       api_base: http://ollama:11434
 
+  # OpenAI's open-weights gpt-oss model, served by Ollama. The same model id
+  # the YouTube clip (https://www.youtube.com/watch?v=Cyn_Dm05_eU) uses with
+  # LM Studio — pulling via Ollama is the equivalent flow on this stack and
+  # plays nicely with `claude-local-gpt-oss` (Option D).
+  - model_name: gpt-oss
+    litellm_params:
+      model: ollama_chat/gpt-oss:20b
+      api_base: http://ollama:11434
+
   # --- LM Studio (host-side desktop app) -------------------------------------
   # LM Studio (https://lmstudio.ai) runs on the host as a desktop app, not in
   # a container. It exposes an OpenAI-compatible endpoint at

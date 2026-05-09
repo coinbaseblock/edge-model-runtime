@@ -43,6 +43,7 @@ Links: [NVIDIA Nemotron hub](https://developer.nvidia.com/nemotron) · [NVIDIA O
 | `llama3.1:8b-instruct-q8_0` | ~8.5 GB | high-quality general |
 | `mistral-nemo:12b` | ~7 GB | long context |
 | `deepseek-coder-v2:16b` | ~9 GB | coding (MoE) |
+| `gpt-oss:20b` | ~13 GB | OpenAI open-weights — same model the LM Studio [video](https://www.youtube.com/watch?v=Cyn_Dm05_eU) uses; works well with Claude Code via Option D (`claude-local-gpt-oss`) |
 
 ### 24+ GB VRAM
 
