@@ -10,10 +10,12 @@ load_env
 
 section "💾 Host data usage — $AI_DATA_ROOT"
 if [[ -d "${AI_DATA_ROOT:-}" ]]; then
-  du -sh "$AI_DATA_ROOT"/* 2>/dev/null | sort -rh
+  # || true: some subdirs may be root-owned by containers; errors are suppressed
+  # and must not abort the report (set -euo pipefail is active).
+  du -sh "$AI_DATA_ROOT"/* 2>/dev/null | sort -rh || true
   log ""
   log "Total:"
-  du -sh "$AI_DATA_ROOT" 2>/dev/null
+  du -sh "$AI_DATA_ROOT" 2>/dev/null || true
 else
   warn "AI_DATA_ROOT not found: ${AI_DATA_ROOT:-(unset)}"
 fi
@@ -30,7 +32,7 @@ docker system df
 
 section "📦 Docker images for this stack"
 load_env
-for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE OPENHANDS_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE; do
+for var in OLLAMA_IMAGE OPEN_WEBUI_IMAGE LITELLM_IMAGE OPENHANDS_IMAGE VLLM_IMAGE TRAINING_IMAGE CUDA_TEST_IMAGE AIDER_CLI_IMAGE; do
   img="${!var:-}"
   [[ -z "$img" ]] && continue
   if docker image inspect "$img" >/dev/null 2>&1; then
