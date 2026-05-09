@@ -106,6 +106,51 @@ Common causes:
 - Bad `WEBUI_SECRET_KEY` → re-run `bash scripts/00-install.sh`
 - Missing GPU driver → install/upgrade NVIDIA driver, reboot
 
+## aider: 401 / "Unauthorized" from LiteLLM
+
+aider passes `OPENAI_API_KEY` as the bearer token. In cloud mode this must match `LITELLM_MASTER_KEY` in `.env`. Verify:
+
+```bash
+grep LITELLM_MASTER_KEY .env
+curl -s -H "Authorization: Bearer <key>" http://localhost:4000/health/liveliness
+```
+
+If the key is wrong, update `.env` and rerun `scripts/06-coding-cli.sh`.
+
+## aider: "No such model" / 404
+
+For local mode, the model must be pulled into Ollama:
+
+```bash
+docker exec edge-ollama ollama list   # check available models
+bash scripts/04-pull-model.sh qwen2.5-coder:7b
+```
+
+For cloud mode, check that the model name matches an entry in `litellm/config.yaml`:
+
+```bash
+grep model_name litellm/config.yaml
+```
+
+## aider: "Tool-calling unsupported"
+
+aider requires function-calling support. Not all models support it:
+
+- ✅ Local: `qwen2.5-coder:7b`, `qwen2.5-coder:14b`, `qwen2.5-coder:32b`
+- ✅ Cloud: `claude-sonnet-4-6`, `claude-opus-4-7`
+- ❌ `nemotron` (instruct only, no tool-calling schema)
+
+Switch model with `--model <name>`.
+
+## Weekly disk report (cron suggestion)
+
+Add to `crontab -e` — not installed automatically:
+
+```cron
+# Weekly disk report → log file
+# 0 3 * * 0  cd /home/expert/edge-model-runtime && bash scripts/08-disk-report.sh >> /mnt/edge-backup/ai-data/logs/disk-report.log 2>&1
+```
+
 ## How to fully reset
 
 ```bash

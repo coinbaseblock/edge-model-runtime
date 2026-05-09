@@ -65,6 +65,22 @@ compose --profile vllm up -d vllm        # adds vLLM
 compose --profile training run --rm training bash   # one-shot training shell
 ```
 
+## aider coding CLI
+
+aider is an AI pair-programming CLI that can edit files, run shell commands, and make git commits. It is delivered as a **host launcher** (not a Compose service) for two reasons:
+
+1. **No service lifecycle friction** — the user `cd`s into any repo and runs `bash scripts/06-coding-cli.sh`; no `compose up`, no network to join, no per-project config.
+2. **Correct git identity** — `~/.gitconfig` and `~/.ssh` are bind-mounted read-only at `docker run` time, so commits always carry the calling user's identity regardless of which repo is being edited.
+
+The image tag is pinned in `.env.versions` (`AIDER_CLI_IMAGE`). Local mode points at `edge-ollama:11434/v1` (zero outbound AI traffic). Cloud mode goes through `edge-litellm:4000/v1` → Anthropic, gated by `LITELLM_MASTER_KEY`.
+
+```
+bash scripts/06-coding-cli.sh          # local (Ollama, no outbound calls)
+bash scripts/06-coding-cli.sh --cloud  # cloud (LiteLLM → Anthropic)
+```
+
+Persistent aider config lives under `${AI_DATA_ROOT}/coding-cli/`.
+
 ## Cleanup decision tree
 
 ```

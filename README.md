@@ -108,6 +108,14 @@ bash scripts/0a-pull-nemotron.sh nano
 
 # 5. Open WebUI
 open http://localhost:3000   # or http://<host-ip>:3000 from another machine
+
+# 6. AI coding CLI (aider) — local, no outbound calls
+cd /your/project
+bash /path/to/edge-model-runtime/scripts/06-coding-cli.sh          # local (Ollama)
+bash /path/to/edge-model-runtime/scripts/06-coding-cli.sh --cloud  # cloud (Anthropic via LiteLLM)
+
+# 7. Auto-start on boot
+bash scripts/07-install-systemd.sh --enable
 ```
 
 > **Recommended clone location on DGX Spark:** `/home/<user>/edge-model-runtime` (e.g. `/home/expert/edge-model-runtime`). Keep `AI_DATA_ROOT` on the same disk to avoid cross-mount copies.
