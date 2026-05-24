@@ -261,6 +261,7 @@ services:
       #     http://<host>:${OPENHANDS_PORT:-3030}/api/integrations/github/callback
       GITHUB_APP_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
       GITHUB_APP_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       # Sandbox/agent-server configuration.
       # SANDBOX_HOST_PORT: port on which THIS container is reachable from the
       #   agent-server containers (via host.docker.internal). Must match
