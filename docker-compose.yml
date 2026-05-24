@@ -252,7 +252,7 @@ services:
       # Default LLM endpoint = LiteLLM proxy on the shared compose network.
       # Users can still change this in the OpenHands settings UI; this just
       # pre-fills the form so first-run works without manual config.
-      LLM_BASE_URL: ${OPENHANDS_LLM_BASE_URL:-http://litellm:4000}
+      LLM_BASE_URL: ${OPENHANDS_LLM_BASE_URL:-http://10.88.1.254:4000}
       LLM_API_KEY: ${LITELLM_MASTER_KEY:-}
       # GitHub OAuth (optional). Without these set, the OpenHands UI lets you
       # paste a fine-grained PAT in Settings as a fallback. To enable OAuth:
