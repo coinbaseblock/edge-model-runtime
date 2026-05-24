@@ -275,7 +275,7 @@ services:
       # SANDBOX_CONTAINER_URL_PATTERN: URL template the frontend uses to reach
       #   agent-server exposed ports (VNC, VS Code, etc.). Replace {port} with
       #   the host-mapped port. Default localhost:{port} breaks on remote access.
-      SANDBOX_CONTAINER_URL_PATTERN: "http://10.88.1.254:{port}"
+      SANDBOX_CONTAINER_URL_PATTERN: "http://${OPENHANDS_HOST_IP:-10.88.1.254}:{port}"
       LLM_MODEL: ${OPENHANDS_LLM_MODEL:-qwen3-coder-32k}
 
     volumes:
