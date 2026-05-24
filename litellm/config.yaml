@@ -52,7 +52,7 @@ model_list:
 
   - model_name: nemotron-nano
     litellm_params:
-      model: ollama_chat/nemotron3:nano-instruct
+      model: ollama_chat/nemotron-3-nano:latest
       api_base: http://ollama:11434
 
   # OpenAI's open-weights gpt-oss model, served by Ollama. The same model id
@@ -105,7 +105,29 @@ model_list:
   #     api_key: os.environ/GEMINI_API_KEY
 
 
-  # --- Local Ollama models (matched to ollama list on this host) -----------
+  # --- Original models (user, restored from AI_DATA_ROOT) -----------------
+  - model_name: qwen2.5-coder-14b
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: llama3
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: nemotron
+    litellm_params:
+      model: ollama_chat/nemotron:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+    # --- Local Ollama models (matched to ollama list on this host) -----------
   # Default variants (low ctx, fast for quick queries)
   - model_name: localmodel26b
     litellm_params:
