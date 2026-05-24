@@ -29,3 +29,11 @@
 # ollama:qwen2.5-coder:7b      # default coding model for OpenCode / Claude MCP
 # ollama:nomic-embed-text      # only needed if you call ollama_embed
 # ollama:gpt-oss:20b           # OpenAI open-weights, ~13 GB; equivalent of the LM Studio model in youtube.com/watch?v=Cyn_Dm05_eU — pair with `bash scripts/33-setup-claude-local.sh gpt-oss`
+
+# Active models on this host (DGX Spark / GB10, 128GB unified memory)
+# Updated to match actual ollama list — use 32k variants for full context.
+ollama:localmodel26b:latest
+ollama:qwen3-coder:30b
+ollama:gemma4:26b
+ollama:qwen2.5vl:7b
+ollama:nomic-embed-text

@@ -105,26 +105,66 @@ model_list:
   #     api_key: os.environ/GEMINI_API_KEY
 
 
-  # --- Local Ollama models (updated to match available models) ---------------
+  # --- Local Ollama models (matched to ollama list on this host) -----------
+  # Default variants (low ctx, fast for quick queries)
   - model_name: localmodel26b
     litellm_params:
       model: ollama_chat/localmodel26b:latest
       api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
 
   - model_name: qwen3-coder
     litellm_params:
       model: ollama_chat/qwen3-coder:30b
       api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
 
   - model_name: gemma4
     litellm_params:
       model: ollama_chat/gemma4:26b
       api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
 
   - model_name: qwen2.5vl
     litellm_params:
       model: ollama_chat/qwen2.5vl:7b
       api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # 32k context variants — GB10 has 128GB unified memory, fits comfortably.
+  # localmodel26b default is only 3072 ctx; these unlock the full window.
+  - model_name: localmodel26b-32k
+    litellm_params:
+      model: ollama_chat/localmodel26b-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: qwen3-coder-32k
+    litellm_params:
+      model: ollama_chat/qwen3-coder-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: gemma4-32k
+    litellm_params:
+      model: ollama_chat/gemma4-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: qwen2.5vl-32k
+    litellm_params:
+      model: ollama_chat/qwen2.5vl-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
 
 litellm_settings:
   # Drop unsupported params silently rather than 400-ing the client. Open
