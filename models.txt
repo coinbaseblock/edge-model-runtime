@@ -31,9 +31,24 @@
 # ollama:gpt-oss:20b           # OpenAI open-weights, ~13 GB; equivalent of the LM Studio model in youtube.com/watch?v=Cyn_Dm05_eU — pair with `bash scripts/33-setup-claude-local.sh gpt-oss`
 
 # Active models on this host (DGX Spark / GB10, 128GB unified memory)
-# Updated to match actual ollama list — use 32k variants for full context.
-ollama:localmodel26b:latest
-ollama:qwen3-coder:30b
-ollama:gemma4:26b
-ollama:qwen2.5vl:7b
+# AI_DATA_ROOT bind mount — all models persist at /mnt/edge-backup/ai-data/ollama
+
+# --- Original models (user) ---
+ollama:qwen2.5-coder:7b
+ollama:qwen2.5-coder:14b
+ollama:qwen2.5-coder:32b
+ollama:gpt-oss:20b
+ollama:llama3.2:3b
+ollama:nemotron:latest
+ollama:nemotron-3-nano:latest
 ollama:nomic-embed-text
+
+# --- New models (น้อง) ---
+ollama:localmodel26b:latest
+ollama:localmodel26b-32k:latest
+ollama:qwen3-coder:30b
+ollama:qwen3-coder-32k:latest
+ollama:gemma4:26b
+ollama:gemma4-32k:latest
+ollama:qwen2.5vl:7b
+ollama:qwen2.5vl-32k:latest
