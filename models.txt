@@ -35,8 +35,6 @@
 
 # --- Original models (user) ---
 ollama:qwen2.5-coder:7b
-ollama:qwen2.5-coder:14b
-ollama:qwen2.5-coder:32b
 ollama:gpt-oss:20b
 ollama:llama3.2:3b
 ollama:nemotron:latest
@@ -48,10 +46,7 @@ ollama:localmodel26b:latest
 ollama:localmodel26b-32k:latest
 ollama:qwen3-coder:30b
 ollama:qwen3-coder-32k:latest
-ollama:gemma4:26b
 ollama:gemma4-32k:latest
-ollama:qwen2.5vl:7b
 ollama:qwen2.5vl-32k:latest
-ollama:deepseek-coder-v2:16b
 ollama:qwen3-coder-next:latest
 ollama:qwen3.6:27b

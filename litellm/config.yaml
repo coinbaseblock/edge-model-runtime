@@ -19,7 +19,7 @@ model_list:
       model: anthropic/claude-haiku-4-5-20251001
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # --- OpenAI ChatGPT (paid — OPENAI_PROVIDER_API_KEY in .env) ---------------
+  # --- OpenAI ChatGPT (paid — set OPENAI_PROVIDER_API_KEY in .env) ----------
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
@@ -37,29 +37,7 @@ model_list:
 
   # --- Local Ollama models (DGX Spark / GB10, 128 GB unified memory) ---------
 
-  # qwen2.5-coder family
-  - model_name: qwen2.5-coder
-    litellm_params:
-      model: ollama_chat/qwen2.5-coder:7b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  - model_name: qwen2.5-coder-14b
-    litellm_params:
-      model: ollama_chat/qwen2.5-coder:14b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  - model_name: qwen2.5-coder-32b
-    litellm_params:
-      model: ollama_chat/qwen2.5-coder:32b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  # qwen3-coder family (agentic coding)
+  # qwen3-coder family (agentic coding — recommended)
   - model_name: qwen3-coder
     litellm_params:
       model: ollama_chat/qwen3-coder:30b
@@ -89,14 +67,7 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
-  # gemma4 vision family
-  - model_name: gemma4
-    litellm_params:
-      model: ollama_chat/gemma4:26b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
+  # gemma4 32k (vision, thinking)
   - model_name: gemma4-32k
     litellm_params:
       model: ollama_chat/gemma4-32k:latest
@@ -104,14 +75,7 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
-  # qwen2.5-vl vision-language
-  - model_name: qwen2.5vl
-    litellm_params:
-      model: ollama_chat/qwen2.5vl:7b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
+  # qwen2.5-vl vision-language 32k
   - model_name: qwen2.5vl-32k
     litellm_params:
       model: ollama_chat/qwen2.5vl-32k:latest
@@ -119,7 +83,7 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
-  # localmodel26b (custom fine-tune)
+  # localmodel26b (custom fine-tune — น้อง)
   - model_name: localmodel26b
     litellm_params:
       model: ollama_chat/localmodel26b:latest
@@ -130,14 +94,6 @@ model_list:
   - model_name: localmodel26b-32k
     litellm_params:
       model: ollama_chat/localmodel26b-32k:latest
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  # deepseek-coder-v2 (coding)
-  - model_name: deepseek-coder
-    litellm_params:
-      model: ollama_chat/deepseek-coder-v2:16b
       api_base: http://ollama:11434
       timeout: 3600
       stream_timeout: 3600
@@ -161,6 +117,14 @@ model_list:
   - model_name: nemotron-nano
     litellm_params:
       model: ollama_chat/nemotron-3-nano:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # qwen2.5-coder 7b (fast, small)
+  - model_name: qwen2.5-coder
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:7b
       api_base: http://ollama:11434
       timeout: 3600
       stream_timeout: 3600
