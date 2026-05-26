@@ -1,21 +1,9 @@
 # =============================================================================
 # litellm/config.yaml — LiteLLM proxy model registry
 # =============================================================================
-# Defines which cloud models the proxy exposes. Each `model_name` is the
-# public id seen by clients (Open WebUI dropdown, opencode, curl). The
-# `litellm_params.model` field tells LiteLLM which provider/model to call.
-#
-# Provider keys are read from the container env (set in .env, see
-# .env.example). Models whose key is empty will fail at call-time with a
-# clear "missing api key" error — they still show up in the catalogue but
-# are inert. That's intentional: edit this file to remove what you don't
-# want to see.
-#
-# Reload after editing: `docker compose --profile cloud up -d --force-recreate litellm`
-# =============================================================================
-
 model_list:
-  # --- Anthropic (Claude) ----------------------------------------------------
+
+  # --- Anthropic Claude (paid — ANTHROPIC_API_KEY in .env) -------------------
   - model_name: claude-opus-4-7
     litellm_params:
       model: anthropic/claude-opus-4-7
@@ -31,81 +19,32 @@ model_list:
       model: anthropic/claude-haiku-4-5-20251001
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # --- Local Ollama (exposed through LiteLLM so Anthropic-format clients ----
-  # like Claude Code can hit them via `/v1/messages`).
-  #
-  # The `model_name` is the public id the client picks; `model:` tells
-  # LiteLLM which Ollama tag to call. `api_base` points at the Ollama
-  # service on the shared compose network (`edge-ai-net`).
-  #
-  # Edit / add entries to match what `ollama list` shows on the host. The
-  # tags below are the ones recommended in docs/MODEL-RECOMMENDATIONS.md.
+  # --- OpenAI ChatGPT (paid — OPENAI_PROVIDER_API_KEY in .env) ---------------
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4.1
+    litellm_params:
+      model: openai/gpt-4.1
+      api_key: os.environ/OPENAI_API_KEY
+
+  # --- Local Ollama models (DGX Spark / GB10, 128 GB unified memory) ---------
+
+  # qwen2.5-coder family
   - model_name: qwen2.5-coder
     litellm_params:
       model: ollama_chat/qwen2.5-coder:7b
       api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
 
-  - model_name: qwen2.5-coder-large
-    litellm_params:
-      model: ollama_chat/qwen2.5-coder:32b
-      api_base: http://ollama:11434
-
-  - model_name: nemotron-nano
-    litellm_params:
-      model: ollama_chat/nemotron-3-nano:latest
-      api_base: http://ollama:11434
-
-  # OpenAI's open-weights gpt-oss model, served by Ollama. The same model id
-  # the YouTube clip (https://www.youtube.com/watch?v=Cyn_Dm05_eU) uses with
-  # LM Studio — pulling via Ollama is the equivalent flow on this stack and
-  # plays nicely with `claude-local-gpt-oss` (Option D).
-  - model_name: gpt-oss
-    litellm_params:
-      model: ollama_chat/gpt-oss:20b
-      api_base: http://ollama:11434
-
-  # --- LM Studio (host-side desktop app) -------------------------------------
-  # LM Studio (https://lmstudio.ai) runs on the host as a desktop app, not in
-  # a container. It exposes an OpenAI-compatible endpoint at
-  # http://<host>:1234/v1. We reach it via `host.docker.internal` (set in
-  # docker-compose.yml under extra_hosts on the litellm service).
-  #
-  # `LMSTUDIO_*` env vars come from .env (see .env.example). The model id
-  # LM Studio reports literally contains a slash (e.g. "openai/gpt-oss-20b"),
-  # so we tell LiteLLM the provider via `custom_llm_provider: openai` and pass
-  # the full model id as-is — otherwise LiteLLM would strip the leading
-  # "openai/" and the request would 404 in LM Studio.
-  #
-  # To switch the loaded model, change LMSTUDIO_MODEL in .env then:
-  #   docker compose --profile cloud up -d --force-recreate litellm
-  # Or just run `bash scripts/37-setup-lmstudio.sh` again.
-  - model_name: lmstudio
-    litellm_params:
-      model: os.environ/LMSTUDIO_MODEL
-      api_base: os.environ/LMSTUDIO_BASE_URL
-      api_key: os.environ/LMSTUDIO_API_KEY
-      custom_llm_provider: openai
-
-  # --- OpenAI ----------------------------------------------------------------
-  # Uncomment after setting OPENAI_PROVIDER_API_KEY in .env.
-  # - model_name: gpt-4o
-  #   litellm_params:
-  #     model: openai/gpt-4o
-  #     api_key: os.environ/OPENAI_API_KEY
-  # - model_name: gpt-4o-mini
-  #   litellm_params:
-  #     model: openai/gpt-4o-mini
-  #     api_key: os.environ/OPENAI_API_KEY
-
-  # --- Google Gemini ---------------------------------------------------------
-  # Uncomment after setting GEMINI_API_KEY in .env.
-  # - model_name: gemini-1.5-pro
-  #   litellm_params:
-  #     model: gemini/gemini-1.5-pro
-  #     api_key: os.environ/GEMINI_API_KEY
-
-
-  # --- Original models (user, restored from AI_DATA_ROOT) -----------------
   - model_name: qwen2.5-coder-14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
@@ -113,55 +52,17 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
-  - model_name: llama3
+  - model_name: qwen2.5-coder-32b
     litellm_params:
-      model: ollama_chat/llama3.2:3b
+      model: ollama_chat/qwen2.5-coder:32b
       api_base: http://ollama:11434
       timeout: 3600
       stream_timeout: 3600
 
-  - model_name: nemotron
-    litellm_params:
-      model: ollama_chat/nemotron:latest
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-    # --- Local Ollama models (matched to ollama list on this host) -----------
-  # Default variants (low ctx, fast for quick queries)
-  - model_name: localmodel26b
-    litellm_params:
-      model: ollama_chat/localmodel26b:latest
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
+  # qwen3-coder family (agentic coding)
   - model_name: qwen3-coder
     litellm_params:
       model: ollama_chat/qwen3-coder:30b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  - model_name: gemma4
-    litellm_params:
-      model: ollama_chat/gemma4:26b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  - model_name: qwen2.5vl
-    litellm_params:
-      model: ollama_chat/qwen2.5vl:7b
-      api_base: http://ollama:11434
-      timeout: 3600
-      stream_timeout: 3600
-
-  # 32k context variants — GB10 has 128GB unified memory, fits comfortably.
-  # localmodel26b default is only 3072 ctx; these unlock the full window.
-  - model_name: localmodel26b-32k
-    litellm_params:
-      model: ollama_chat/localmodel26b-32k:latest
       api_base: http://ollama:11434
       timeout: 3600
       stream_timeout: 3600
@@ -173,9 +74,40 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
+  - model_name: qwen3-coder-next
+    litellm_params:
+      model: ollama_chat/qwen3-coder-next:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # qwen3.6 dense 27B
+  - model_name: qwen3.6-27b
+    litellm_params:
+      model: ollama_chat/qwen3.6:27b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # gemma4 vision family
+  - model_name: gemma4
+    litellm_params:
+      model: ollama_chat/gemma4:26b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
   - model_name: gemma4-32k
     litellm_params:
       model: ollama_chat/gemma4-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # qwen2.5-vl vision-language
+  - model_name: qwen2.5vl
+    litellm_params:
+      model: ollama_chat/qwen2.5vl:7b
       api_base: http://ollama:11434
       timeout: 3600
       stream_timeout: 3600
@@ -187,15 +119,73 @@ model_list:
       timeout: 3600
       stream_timeout: 3600
 
+  # localmodel26b (custom fine-tune)
+  - model_name: localmodel26b
+    litellm_params:
+      model: ollama_chat/localmodel26b:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: localmodel26b-32k
+    litellm_params:
+      model: ollama_chat/localmodel26b-32k:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # deepseek-coder-v2 (coding)
+  - model_name: deepseek-coder
+    litellm_params:
+      model: ollama_chat/deepseek-coder-v2:16b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # gpt-oss (OpenAI open-weights via Ollama)
+  - model_name: gpt-oss
+    litellm_params:
+      model: ollama_chat/gpt-oss:20b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # nemotron family (NVIDIA)
+  - model_name: nemotron
+    litellm_params:
+      model: ollama_chat/nemotron:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  - model_name: nemotron-nano
+    litellm_params:
+      model: ollama_chat/nemotron-3-nano:latest
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # llama3
+  - model_name: llama3
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://ollama:11434
+      timeout: 3600
+      stream_timeout: 3600
+
+  # --- LM Studio (host desktop app, optional) --------------------------------
+  - model_name: lmstudio
+    litellm_params:
+      model: os.environ/LMSTUDIO_MODEL
+      api_base: os.environ/LMSTUDIO_BASE_URL
+      api_key: os.environ/LMSTUDIO_API_KEY
+      custom_llm_provider: openai
 
 litellm_settings:
-  # Drop unsupported params silently rather than 400-ing the client. Open
-  # WebUI sometimes sends OpenAI-only fields (e.g. `frequency_penalty`) to
-  # Anthropic models, which would otherwise fail.
   drop_params: true
-  # Surface upstream provider errors verbatim instead of LiteLLM's wrapper.
   set_verbose: false
+  request_timeout: 21600
+  stream_timeout: 21600
 
 general_settings:
-  # Clients must present this as the OpenAI API key. Set in .env.
-  master_key: os.environ/LITELLM_MASTER_KEY
+  max_request_timeout: 21600

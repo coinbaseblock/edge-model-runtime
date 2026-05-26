@@ -52,3 +52,6 @@ ollama:gemma4:26b
 ollama:gemma4-32k:latest
 ollama:qwen2.5vl:7b
 ollama:qwen2.5vl-32k:latest
+ollama:deepseek-coder-v2:16b
+ollama:qwen3-coder-next:latest
+ollama:qwen3.6:27b
