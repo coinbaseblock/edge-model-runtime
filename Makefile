@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
         setup lint test format verify quick-check hooks-install \
         ai-review ai-fix ai-pr \
         up down webui codex claude-local claude-cloud claude-lmstudio \
-        cloud-models lmstudio apply-patch
+        cloud-models lmstudio apply-patch public public-stop
 
 help:
 	@echo "Stack lifecycle (the unified entry point is bin/emr):"
@@ -149,3 +149,11 @@ apply-patch:
 	[ "$(FORCE)"  = "1" ] && set -- "$$@" --force-dirty; \
 	if [ -n "$$APPLY_PATCH_MSG" ]; then set -- "$$@" -m "$$APPLY_PATCH_MSG"; fi; \
 	bash scripts/35-apply-web-patch.sh "$$@"
+
+# Public (no-login) Open WebUI on port PUBLIC_WEBUI_PORT (default 3001)
+# Main WebUI on port 3000 is unaffected.
+public:
+	bash scripts/01-public.sh start
+
+public-stop:
+	bash scripts/01-public.sh stop

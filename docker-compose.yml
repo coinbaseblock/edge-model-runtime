@@ -346,6 +346,51 @@ services:
     networks:
       - edge-ai-net
 
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: Public Open WebUI — no login required, port PUBLIC_WEBUI_PORT (default 3001)
+  # Anyone who opens the URL gets their own session automatically.
+  # Main WebUI on port 3000 is completely unaffected.
+  #
+  # Enable:  make public           OR  docker compose --profile public up -d open-webui-public
+  # Disable: make public-stop      OR  docker compose --profile public stop open-webui-public
+  # ---------------------------------------------------------------------------
+  open-webui-public:
+    image: ${OPEN_WEBUI_IMAGE}
+    container_name: edge-open-webui-public
+    profiles: ["public"]
+    restart: unless-stopped
+
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+    ports:
+      - "${PUBLIC_WEBUI_PORT:-3001}:8080"
+
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}-pub
+      WEBUI_AUTH: "False"
+      ENABLE_SIGNUP: "false"
+      ENABLE_OPENAI_API: ${ENABLE_OPENAI_API:-true}
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-noop}
+
+    volumes:
+      - ${AI_DATA_ROOT}/open-webui-public:/app/backend/data
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    networks:
+      - edge-ai-net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "2"
 networks:
   edge-ai-net:
     name: edge-ai-net
