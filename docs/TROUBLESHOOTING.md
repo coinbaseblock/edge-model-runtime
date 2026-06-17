@@ -19,6 +19,33 @@ docker info | grep -i runtime
 # Should show: nvidia
 ```
 
+**This alone does not guarantee `edge-ollama` gets the GPU.** `nvidia-ctk runtime
+configure` registers the `nvidia` runtime but does not make it the *default*
+runtime (`docker info` will still show `Default Runtime: runc` unless you add
+`--set-as-default`). Without a default runtime *or* a per-service GPU
+reservation, any container recreate (image update, `docker compose up`,
+reboot) silently falls back to CPU with no error.
+
+The fix is in `docker-compose.yml`'s `ollama` service, not the host: it must
+carry a `deploy.resources.reservations.devices` block (plus the
+`NVIDIA_VISIBLE_DEVICES`/`NVIDIA_DRIVER_CAPABILITIES` env vars, per
+[ARCHITECTURE.md](ARCHITECTURE.md#gpu-passthrough)). If `ollama ps` ever shows
+`100% CPU` again, check that block is still present before touching the host
+config:
+
+```bash
+docker exec edge-ollama ollama ps
+# PROCESSOR column should say "100% GPU", not "100% CPU"
+
+grep -A8 'deploy:' docker-compose.yml
+# should show the nvidia device reservation under the ollama service
+```
+
+If it's missing or was reverted, re-add it and recreate:
+```bash
+docker compose --env-file .env --env-file .env.versions up -d --force-recreate ollama
+```
+
 ## "permission denied" on `/mnt/edge-backup/ai-data`
 
 This usually means files inside were created by root from a prior container run.
